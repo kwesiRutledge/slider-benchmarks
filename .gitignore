@@ -130,3 +130,6 @@ dmypy.json
 
 # Mac Temporary Files
 *.DS_Store
+
+# Testing Images
+images/testing/*.png
