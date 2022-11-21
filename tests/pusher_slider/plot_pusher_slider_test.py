@@ -1,5 +1,5 @@
 """
-pusher_slider_test.py
+plot_pusher_slider_test.py
 Description:
 
 """
@@ -9,8 +9,8 @@ import sys, unittest
 import matplotlib.pyplot as plt
 import jax.numpy as jnp
 
-sys.path.append('../')
-import src.pusher_slider
+sys.path.append('../../')
+from src.pusher_slider import PusherSliderSystem
 
 class PusherSliderTest(unittest.TestCase):
     """
@@ -39,7 +39,7 @@ class PusherSliderTest(unittest.TestCase):
         fig1 = plt.figure()
         plt.plot(corners[0,:],corners[1,:])
 
-        fig1.savefig("../images/testing/pusher_slider_test1-show.png")
+        fig1.savefig("../../images/testing/pusher_slider_test1-show.png")
 
     """
     test_plot2
@@ -91,7 +91,7 @@ class PusherSliderTest(unittest.TestCase):
             linewidth=lw, color=slider_color
         )
 
-        fig1.savefig("../images/testing/pusher_slider_test2-show.png")
+        fig1.savefig("../../images/testing/pusher_slider_test2-show.png")
 
     """
     test_plot3
@@ -108,7 +108,7 @@ class PusherSliderTest(unittest.TestCase):
         # Constants
         self.s_width = 0.09  # m 
         self.s_length = 0.09 # m
-        self.s_theta = jnp.pi/6 # radians
+        self.s_theta = jnp.pi/6.0 # radians
 
         self.s_x = 0.1
         self.s_y = 0.1
@@ -117,6 +117,9 @@ class PusherSliderTest(unittest.TestCase):
 
         lw = 2.0
         slider_color = 'blue'
+        pusher_color = 'magenta'
+
+        self.p_radius = 0.01 # Radius of the Pusher representation (circle)
 
         # Creating Slider
         # ===============
@@ -145,6 +148,7 @@ class PusherSliderTest(unittest.TestCase):
 
         # Plotting
         fig1 = plt.figure()
+        ax   = fig1.add_subplot(111)
         plt.plot(
             rot_n_transl_corners[0,:],rot_n_transl_corners[1,:],
             linewidth=lw, color=slider_color
@@ -155,9 +159,32 @@ class PusherSliderTest(unittest.TestCase):
 
         # Create circle
         circle_center = jnp.array([[self.s_x],[self.s_y]]) + \
-            rot.Dot( jnp.array([[self.p_x],[self.p_y]]) + jnp.array([[-self.p_radius],[0.0]]) )
+            rot.dot( jnp.array([[-self.p_x],[self.p_y]]) + jnp.array([[-self.p_radius],[0.0]]) )
 
-        fig1.savefig("../images/testing/pusher_slider_test2-show.png")
+        ax.add_patch(
+            plt.Circle(  (circle_center[0], circle_center[1]) , self.p_radius, color=pusher_color, alpha=0.2)
+        )
+
+        fig1.savefig("../../images/testing/pusher_slider_test3-show.png")
+
+    """
+    test_plot4
+    Description:
+       Making sure that the plotting function works.
+    """
+    def test_plot4(self):
+
+        # Constants
+        lw = 2.0
+        slider_color = 'blue'
+        pusher_color = 'magenta'
+        ps1 = PusherSliderSystem()
+
+        # Plotting
+        fig1 = plt.figure()
+        ps1.plot(fig1)
+
+        fig1.savefig("../../images/testing/pusher_slider_test4-show.png")
 
 if __name__ == '__main__':
     unittest.main()
