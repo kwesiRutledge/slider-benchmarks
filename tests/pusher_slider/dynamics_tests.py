@@ -97,7 +97,66 @@ class PusherSliderTest2(unittest.TestCase):
 
         self.assertEqual(mode_out1,'SlidingDown')
 
-    
+    """
+    test_C1
+    Description:
+        Tests that the C matrix is constructed correctly.
+    """
+    def test_C1(self):
+        # constants
+        ps = PusherSliderSystem()
+        ps.s_theta = jnp.pi/6
+
+        # Algorithm
+        C = ps.C()
+
+        self.assertEqual(C[0][0],jnp.cos(jnp.pi/6))
+        self.assertEqual(C[0][1],jnp.sin(jnp.pi/6))
+        self.assertEqual(C[1][0],-jnp.sin(jnp.pi/6))
+        self.assertEqual(C[1][1],jnp.cos(jnp.pi/6))
+
+    """
+    test_Q1
+    Description:
+        Tests that the Q matrix is constructed correctly.
+    """
+    def test_Q1(self):
+        # constants
+        ps = PusherSliderSystem()
+        ps.ps_cof = 1
+        ps.s_width = 0.4 # c = 5
+        ps.p_x = 2.0
+        ps.p_y = 2.0
+
+        # Algorithm
+        Q = ps.Q()
+
+        self.assertEqual(Q[0][0],(1/(25.0+8))*(25+4))
+        self.assertEqual(Q[0][1],(1/(25.0+8))*(4))
+        self.assertEqual(Q[1][0],(1/(25.0+8))*(4))
+        self.assertEqual(Q[1][1],(1/(25.0+8))*(25+4)) 
+
+    """
+    test_f1
+    Description:
+    	Tests the f() function so that we know that the state of the pusher slider is not modified
+		after evaluating f at a given point.
+    """   
+    def test_f1(self):
+        # Constants
+        ps = PusherSliderSystem()
+
+        x0 = ps.x()
+        u_prime = jnp.array([[1.0],[3.0]])
+        x1 = x0 + jnp.array([[0.1],[0.0],[0.0],[0.0]])
+
+        x_dot = ps.f(x1,u_prime)
+        x_dot2 = ps.f2(x1,u_prime) # This u should call
+
+        x_dim = x_dot.shape[1]
+        for x_dim_index in range(x_dim):
+            # Constraints
+            self.assertEqual(x_dot[0,x_dim_index],x_dot[0,x_dim_index])
 
 if __name__ == '__main__':
     unittest.main()
