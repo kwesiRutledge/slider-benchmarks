@@ -4,8 +4,11 @@ Description:
     Creates a class that represents a Pusher-Slider System.
 """
 
+from jax import jit
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+from functools import partial
+
 
 class PusherSliderSystem(object):
     """
@@ -111,7 +114,7 @@ class PusherSliderSystem(object):
         c = f_max / m_max
         mu = self.st_cof # TODO: Which coefficient of friction is this supposed to be?
 
-        gamma_t = ( mu*jnp.power(c,2) - self.p_x * self.p_y + mu * jnp.power(self.p_x,2) )/ \
+        gamma_t = ( mu*jnp.power(c,2) - self.p_x * self.p_y + mu * jnp.power(self.p_x,2) ) / \
             ( jnp.power(c,2) + jnp.power(self.p_y,2) - mu * self.p_x*self.p_y )
 
         gamma_b = ( - mu*jnp.power(c,2) - self.p_x * self.p_y - mu * jnp.power(self.p_x,2) )/ \
@@ -195,10 +198,10 @@ class PusherSliderSystem(object):
         # Constants
 
         # Algorithm
-        self.s_x = x[0][1]
-        self.s_y = x[0][1]
-        self.s_theta = x[0][2]
-        self.p_y = x[0][3]
+        self.s_x = x[0,0]
+        self.s_y = x[1,0]
+        self.s_theta = x[2,0]
+        self.p_y = x[3,0]
 
     """
     set_input
@@ -212,7 +215,7 @@ class PusherSliderSystem(object):
     """
     def set_input(self,u):
         self.v_n = u[0][0]
-        self.v_t = u[0][1]
+        self.v_t = u[1][0]
 
     """
     get_state
@@ -267,6 +270,7 @@ class PusherSliderSystem(object):
     Description:
         Continuous dynamics of the sticking mode of contact between pusher and slider.
     """
+    # @partial(jit, static_argnums=(0,))
     def f1(self,x,u):
         # Constants
         self.set_state(x)
@@ -274,7 +278,7 @@ class PusherSliderSystem(object):
         C0 = self.C()
         Q0 = self.Q()
 
-        g = 10
+        g = 10.0
         f_max = self.st_cof * self.s_mass * g
         m_max = self.st_cof * self.s_mass * g * (self.s_width/2.0)  # The last term is meant to come from
                                                                     # a sort of mass distribution/moment calculation.
@@ -284,7 +288,7 @@ class PusherSliderSystem(object):
 
         # Algorithm
         b1 = jnp.array([
-            [-p_y/(jnp.power(c,2)+jnp.power(p_x,2)+jnp.power(p_y,2)),p_x]
+            [ - p_y / (jnp.power(c,2)+jnp.power(p_x,2)+jnp.power(p_y,2)) , p_x ]
         ])
 
         c1 = jnp.array([[0.0,0.0]])
@@ -296,7 +300,7 @@ class PusherSliderSystem(object):
         #       = [      c1      ]
 
         return jnp.vstack(
-            (C0.dot( Q0.dot(P1) ),b1,c1)
+            (C0.T.dot( Q0.dot(P1) ),b1,c1)
         ).dot(u)
 
     """
@@ -304,6 +308,7 @@ class PusherSliderSystem(object):
     Description:
         Continuous dynamics of the SlidingUp mode of contact between pusher and slider.
     """
+    # @partial(jit, static_argnums=(0,))
     def f2(self,x,u):
         #Constants
         self.set_state(x)
@@ -311,7 +316,7 @@ class PusherSliderSystem(object):
         C0 = self.C()
         Q0 = self.Q()
 
-        g = 10
+        g = 10.0
         f_max = self.st_cof * self.s_mass * g
         m_max = self.st_cof * self.s_mass * g * (self.s_width/2.0)  # The last term is meant to come from
                                                                     # a sort of mass distribution/moment calculation.
@@ -323,7 +328,7 @@ class PusherSliderSystem(object):
 
         # Algorithm
         b2 = jnp.array([
-            [(-p_y+gamma_t*p_x)/(jnp.power(c,2)+jnp.power(p_x,2)+jnp.power(p_y,2)),0]
+            [(-p_y+gamma_t*p_x)/(jnp.power(c,2)+jnp.power(p_x,2)+jnp.power(p_y,2)),0.0]
         ])
 
         c2 = jnp.array([[-gamma_t,0.0]])
@@ -346,6 +351,7 @@ class PusherSliderSystem(object):
     Description:
         Continuous dynamics of the SlidingDown mode of contact between pusher and slider.
     """
+    # @partial(jit, static_argnums=(0,))
     def f3(self,x,u):
         #Constants
         self.set_state(x)
@@ -375,9 +381,9 @@ class PusherSliderSystem(object):
             [gamma_b,0.0]
         ])
 
-        #       = [ C0 * Q0 * P2 ]
-        # dxdt  = [      b2      ] * u
-        #       = [      c2      ]
+        #       = [ C0 * Q0 * P3 ]
+        # dxdt  = [      b3      ] * u
+        #       = [      c3      ]
 
         return jnp.vstack(
             (C0.dot( Q0.dot(P3) ),b3,c3)
