@@ -8,6 +8,8 @@ from jax import jit
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from functools import partial
+import matplotlib.animation as manimation
+
 
 
 class PusherSliderSystem(object):
@@ -411,4 +413,125 @@ class PusherSliderSystem(object):
         else:
             raise(Exception("There was a problem with identifying the current mode! Unexpected mode = " + curr_mode))
 
-        
+
+    """
+    convert_plan_to_video
+    Description:
+        Takes a plan (in the form of trajectories of a Pusher Slider System) and converts it into a video.    
+    """
+    def convert_plan_to_video(self,x_trajectory,t:jnp.array,hide_axes=False):
+        # Constants
+        FFMpegWriter = manimation.writers['ffmpeg']
+        metadata = dict(
+            title=movie_title,
+            artist='Matplotlib',
+            comment='A Pusher-slider trajectory of length ' + x_trajectory.shape[1] + '!'
+        )
+        writer = FFMpegWriter(fps=15, metadata=metadata)
+
+        num_frames = 100 # What is this for??
+
+        # Define bounds for the window using  pusher-slider trajectory
+        x_min = jnp.min(
+            jnp.hstack( x_trajectory[0,:] , x_trajectory[3,:] )
+        )
+
+        # Algorithm
+        # =========
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        if hide_axes:
+            ax.axis('off')
+
+        if limits is not None:
+            plt.xlim(limits[0])
+            plt.ylim(limits[1])
+        else:
+            vertices = np.concatenate(vertices, axis=0)
+            xmin, ymin = vertices.min(axis=0)
+            xmax, ymax = vertices.max(axis=0)
+            plt.xlim([xmin - 0.1, xmax + 0.1])
+            plt.ylim([ymin - 0.1, ymax + 0.1])
+
+        if equal_aspect:
+            plt.gca().set_aspect('equal', adjustable='box')
+
+        if pwl_plans is None or pwl_plans[0] is None:
+            plt.show()
+            return
+
+        if len(pwl_plans) <= 4:
+            colors = ['k', np.array([153, 0, 71]) / 255, np.array([6, 0, 153]) / 255, np.array([0, 150, 0]) / 255]
+        else:
+            cmap = plt.get_cmap('tab10')
+            colors = [cmap(i) for i in np.linspace(0, 0.85, len(pwl_plans))]
+
+        # num_agents
+        team_positions_at_t = np.zeros((2, num_agents))
+        agent_circles = []
+        for i in range(num_agents):
+            PWL = pwl_plans[i]
+            x_t = get_state_at_t(0.0, PWL)
+            team_positions_at_t[:, i] = x_t
+            # print(team_positions_at_t)
+            agent_circles.append(
+                plt.Circle((team_positions_at_t[0, i], team_positions_at_t[1, i]), size_list[i], color=colors[i])
+            )
+            ax.add_patch(agent_circles[-1])
+
+        for i in range(len(pwl_plans)):
+            PWL = pwl_plans[i]
+            ax.plot([P[0][0] for P in PWL], [P[0][1] for P in PWL], '-', color=colors[i])
+
+            ax.plot(PWL[-1][0][0], PWL[-1][0][1], '*', color=colors[i])
+            # print(PWL[0][0][0])
+            # print(size_list[i])
+            # ax.plot(PWL[0][0][0], PWL[0][0][1], 'o', color = colors[i])
+
+        # Plot the Team Plan
+        if show_team_plan:
+            for P in team_plan:
+                ax.add_patch(
+                    plt.Circle((P[0][0], P[0][1]), team_radius, color='m', alpha=0.2)
+                )
+
+        # Plot the team plan over time
+        P0 = team_plan[0]
+        team_circle = plt.Circle((P0[0][0], P0[0][1]), team_radius, color='m', alpha=0.2)
+        if show_moving_team_radius:
+            ax.add_patch(
+                team_circle
+            )
+
+        # This function will modify each of the values of the functions above.
+        def update(frame_number):
+            t = (frame_number / num_frames) * (max_t - min_t) + min_t
+            # print(t)
+            for i in range(num_agents):
+                plan_i = pwl_plans[i]
+                # print(plan_i)
+                x_t = get_state_at_t(t, plan_i)
+                team_positions_at_t[:, i] = x_t
+                agent_circles[i].set(
+                    center=x_t,
+                )
+
+            # If we want to show the team circle moving, then update it here
+            if show_moving_team_radius:
+                team_center_t = get_state_at_t(t, team_plan)
+                team_circle.set(
+                    center=team_center_t
+                )
+
+        # Construct the animation, using the update function as the animation
+        # director.
+        animation = manimation.FuncAnimation(fig, update, np.arange(1, num_frames), interval=25)
+        animation.save(filename=filename, fps=15)
+
+        # # Algorithm
+        # for t in np.linspace(min_t,max_t,num_frames):
+        #     fig_t = plot_single_frame_of_team_plan(
+        #         t, pwl_plans=pwl_plans, team_plan=team_plan, plot_tuples=plot_tuples, team_radius=team_radius, size_list=size_list, equal_aspect=equal_aspect, limits=limits, show_team_plan=True        )
+
+        #     writer.saving(fig_t,filename,20)
+        #     writer.grab_frame()
