@@ -145,3 +145,6 @@ data/clf_control1/*.txt
 
 # extra files in examples directory
 examples/*.txt
+
+# PyCharm files
+.idea/*
