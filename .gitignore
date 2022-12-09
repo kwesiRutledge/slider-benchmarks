@@ -138,3 +138,10 @@ images/example_simulate/*.png
 # Data from traj_opt experiments
 data/traj_opt1/*.png
 data/traj_opt1/*.yml
+
+# data from clf_control1 experiments
+data/clf_control1/*.yml
+data/clf_control1/*.txt
+
+# extra files in examples directory
+examples/*.txt
