@@ -133,3 +133,8 @@ dmypy.json
 
 # Testing Images
 images/testing/*.png
+images/example_simulate/*.png
+
+# Data from traj_opt experiments
+data/traj_opt1/*.png
+data/traj_opt1/*.yml
