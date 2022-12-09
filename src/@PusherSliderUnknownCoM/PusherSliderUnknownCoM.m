@@ -155,7 +155,7 @@ classdef PusherSliderUnknownCoM < handle
             f_max = ps.st_cof * ps.s_mass*g;
             m_max = ps.st_cof * ps.s_mass*g * (ps.s_width/2); % The last term is meant to come from a sort of mass distribution/moment calculation. ???
             c = f_max / m_max;
-            mu = ps.st_cof; %Which coefficient of friction is this supposed to be?
+            mu = ps.ps_cof; %Which coefficient of friction is this supposed to be?
 
             p_y_tilde = ps.p_y + ps.p_y_offset;
 
@@ -762,7 +762,7 @@ classdef PusherSliderUnknownCoM < handle
             f_max = ps.st_cof * ps.s_mass*g;
             m_max = ps.st_cof * ps.s_mass*g * (ps.s_width/2); % The last term is meant to come from a sort of mass distribution/moment calculation. ???
             c = f_max / m_max;
-            mu = ps.st_cof; %Which coefficient of friction is this supposed to be?
+            mu = ps.ps_cof; %Which coefficient of friction is this supposed to be?
 
             % Algorithm
 

@@ -114,7 +114,7 @@ class PusherSliderSystem(object):
         m_max = self.st_cof * self.s_mass * g * (self.s_width/2.0)  # The last term is meant to come from
                                                                     # a sort of mass distribution/moment calculation.
         c = f_max / m_max
-        mu = self.st_cof # TODO: Which coefficient of friction is this supposed to be?
+        mu = self.ps_cof # TODO: Which coefficient of friction is this supposed to be?
 
         gamma_t = ( mu*jnp.power(c,2) - self.p_x * self.p_y + mu * jnp.power(self.p_x,2) ) / \
             ( jnp.power(c,2) + jnp.power(self.p_y,2) - mu * self.p_x*self.p_y )
