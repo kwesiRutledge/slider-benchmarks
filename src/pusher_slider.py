@@ -172,9 +172,9 @@ class PusherSliderSystem(object):
         # Constants
         g = 10.0
         f_max = self.st_cof * self.s_mass * g
-        m_max = self.st_cof * self.s_mass * g * (self.s_width/2.0)  # The last term is meant to come from
+        m_max = self.st_cof * self.s_mass * g * (2.0*self.s_width/3.0)  # The last term is meant to come from
                                                                     # a sort of mass distribution/moment calculation.
-        c = f_max / m_max
+        c = m_max / f_max
         p_x = self.p_x
         p_y = self.p_y
 
@@ -284,7 +284,7 @@ class PusherSliderSystem(object):
         f_max = self.st_cof * self.s_mass * g
         m_max = self.st_cof * self.s_mass * g * (self.s_width/2.0)  # The last term is meant to come from
                                                                     # a sort of mass distribution/moment calculation.
-        c = f_max / m_max
+        c = m_max / f_max
         p_x = self.p_x
         p_y = self.p_y
 
@@ -292,6 +292,7 @@ class PusherSliderSystem(object):
         b1 = jnp.array([
             [ - p_y / (jnp.power(c,2)+jnp.power(p_x,2)+jnp.power(p_y,2)) , p_x ]
         ])
+        print(b1)
 
         c1 = jnp.array([[0.0,0.0]])
 
@@ -345,7 +346,7 @@ class PusherSliderSystem(object):
         #       = [      c2      ]
 
         return jnp.vstack(
-            (C0.dot( Q0.dot(P2) ),b2,c2)
+            (C0.T.dot( Q0.dot(P2) ),b2,c2)
         ).dot(u)
 
     """
@@ -388,7 +389,7 @@ class PusherSliderSystem(object):
         #       = [      c3      ]
 
         return jnp.vstack(
-            (C0.dot( Q0.dot(P3) ),b3,c3)
+            (C0.T.dot( Q0.dot(P3) ),b3,c3)
         ).dot(u)
 
     """
