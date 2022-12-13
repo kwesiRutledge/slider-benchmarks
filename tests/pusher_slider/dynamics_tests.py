@@ -147,8 +147,8 @@ class PusherSliderTest2(unittest.TestCase):
         ps = PusherSliderSystem()
 
         x0 = ps.x()
-        u_prime = jnp.array([[1.0],[3.0]])
-        x1 = x0 + jnp.array([[0.1],[0.0],[0.0],[0.0]])
+        u_prime = jnp.array([[1.0], [3.0]])
+        x1 = x0 + jnp.array([[0.1], [0.0], [0.0], [0.0]])
 
         x_dot = ps.f(x1,u_prime)
         x_dot2 = ps.f2(x1,u_prime) # This u should call

@@ -216,8 +216,8 @@ class PusherSliderSystem(object):
         ps.set_input(u)
     """
     def set_input(self,u):
-        self.v_n = u[0][0]
-        self.v_t = u[1][0]
+        self.v_n = u.at[0,0]
+        self.v_t = u.at[1,0]
 
     """
     get_state
@@ -290,11 +290,10 @@ class PusherSliderSystem(object):
 
         # Algorithm
         b1 = jnp.array([
-            [ - p_y / (jnp.power(c,2)+jnp.power(p_x,2)+jnp.power(p_y,2)) , p_x ]
+            [- p_y / (jnp.power(c, 2)+jnp.power(p_x, 2)+jnp.power(p_y, 2)), p_x]
         ])
-        print(b1)
 
-        c1 = jnp.array([[0.0,0.0]])
+        c1 = jnp.array([[0.0, 0.0]])
 
         P1 = jnp.eye(2)
 
