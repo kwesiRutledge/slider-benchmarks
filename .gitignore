@@ -143,6 +143,10 @@ data/traj_opt1/*.yml
 data/clf_control1/*.yml
 data/clf_control1/*.txt
 
+# Data from flowmap experiments
+# Experiment 1
+data/flowmap1/*.png
+
 # extra files in examples directory
 examples/*.txt
 
