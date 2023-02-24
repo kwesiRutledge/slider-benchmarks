@@ -150,5 +150,8 @@ data/flowmap1/*.png
 # extra files in examples directory
 examples/*.txt
 
+# Experiments
+experiments/experiment5_plotting_friction_cone/*.png
+
 # PyCharm files
 .idea/*
