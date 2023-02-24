@@ -35,7 +35,7 @@ classdef PusherSliderUnknownCoM < handle
     end
     
     methods
-        function ps = PusherSliderUnknownCoM()
+        function ps = PusherSliderUnknownCoM(p_y_offset)
             %PusherSlider Construct an instance of this class
             %   Detailed explanation goes here
             
@@ -60,7 +60,11 @@ classdef PusherSliderUnknownCoM < handle
             ps.v_t = 0.03;
 
             % Define Offset Value
-            ps.p_y_offset = 0; % Choose zero by default.
+            if ~exist('p_y_offset')
+                ps.p_y_offset = 0; % Choose zero by default.
+            else
+                ps.p_y_offset = p_y_offset;
+            end
             
             
         end
