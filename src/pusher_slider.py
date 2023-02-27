@@ -290,7 +290,7 @@ class PusherSliderSystem(object):
 
         # Algorithm
         b1 = jnp.array([
-            [- p_y / (jnp.power(c, 2)+jnp.power(p_x, 2)+jnp.power(p_y, 2)), p_x]
+            [- p_y / (jnp.power(c, 2)+jnp.power(p_x, 2)+jnp.power(p_y, 2)), p_x / (jnp.power(c, 2)+jnp.power(p_x, 2)+jnp.power(p_y, 2))]
         ])
 
         c1 = jnp.array([[0.0, 0.0]])
@@ -333,7 +333,7 @@ class PusherSliderSystem(object):
             [(-p_y+gamma_t*p_x)/(jnp.power(c,2)+jnp.power(p_x,2)+jnp.power(p_y,2)),0.0]
         ])
 
-        c2 = jnp.array([[-gamma_t,0.0]])
+        c2 = jnp.array([[-gamma_t,1.0]])
 
         P2 = jnp.array([
             [1.0,0.0],
@@ -376,7 +376,7 @@ class PusherSliderSystem(object):
             [(-p_y+gamma_b*p_x)/(jnp.power(c,2)+jnp.power(p_x,2)+jnp.power(p_y,2)),0]
         ])
 
-        c3 = jnp.array([[-gamma_b,0.0]])
+        c3 = jnp.array([[-gamma_b,1.0]])
 
         P3 = jnp.array([
             [1.0,0.0],

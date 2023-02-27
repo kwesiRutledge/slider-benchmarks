@@ -9,6 +9,8 @@ import sys, unittest
 
 import matplotlib.pyplot as plt
 import jax.numpy as jnp
+import numpy, datetime
+import scipy.io
 
 sys.path.append('../../')
 from src.pusher_slider import PusherSliderSystem
@@ -35,6 +37,7 @@ class PusherSlider_CircleTest1(unittest.TestCase):
         data_dir_name = "../../data/flowmap1/"
         image_filename1 = data_dir_name + "dataset_trajectories.png"
         image_filename2 = data_dir_name + "hogan_circle_all_dims.png"
+        data_filename1 = data_dir_name + "dataset_x_" + datetime.datetime.now().strftime("%B%d%Y-%I%M%p") + ".mat"
 
         # Create a set of control inputs
         samples_per_U_dim = 10
@@ -44,7 +47,6 @@ class PusherSlider_CircleTest1(unittest.TestCase):
         count = 0
         for vt in jnp.linspace(vn_min, vn_max, samples_per_U_dim):
             for vn in jnp.linspace(vt_min, vt_max, samples_per_U_dim):
-                print(vt, vn)
                 U_cand = U_cand.at[:, count].set(
                     jnp.array([[vt], [vn]]).flatten()
                 )
@@ -80,9 +82,6 @@ class PusherSlider_CircleTest1(unittest.TestCase):
                 {"x": x0, "u": u_i, "phi(x,u,tau)": x_k, "traj": xs}
             )
 
-
-        print(xs)
-
         # Plot each trajectory from this dataset
         fig1 = plt.figure()
         for datapoint in D_x:
@@ -95,18 +94,22 @@ class PusherSlider_CircleTest1(unittest.TestCase):
         plt.title("Dataset Trajectories")
         fig1.savefig(image_filename1)
 
+        # Save Data to File that can be read by matlab
+        D_x_matlab = []
+        for d in D_x:
+            d_matlab = {}
+            for key1 in d:
+                d_matlab[key1] = numpy.array(d[key1])
+
+            # Append this data file to D_x
+            D_x_matlab.append(
+                d_matlab
+            )
+
+        # Save data to file
+        scipy.io.savemat(data_filename1, {'dataset': D_x_matlab})
 
 
-        # fig1 = plt.figure()
-        # plt.plot(xs[:,0],xs[:,1])
-        # fig1.savefig(image_filename1)
-        #
-        # nrows, ncols = 4,1
-        # fig2 = plt.figure()
-        # for dim_index in range(4):
-        #     ax_i = plt.subplot(nrows,ncols,dim_index+1)
-        #     plt.plot(jnp.arange(0.0,T+dt,dt),xs[:,dim_index])
-        # fig2.savefig(image_filename2)
 
 
 

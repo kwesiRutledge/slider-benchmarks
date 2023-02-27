@@ -146,12 +146,18 @@ data/clf_control1/*.txt
 # Data from flowmap experiments
 # Experiment 1
 data/flowmap1/*.png
+data/flowmap1/*.mat
 
 # extra files in examples directory
 examples/*.txt
 
 # Experiments
+experiments/experiment3_flowmap_estimation/*.mat
+experiments/experiment4_linearization/*.asv
 experiments/experiment5_plotting_friction_cone/*.png
+experiments/experiment6_julia_animate/*.png
+experiments/experiment6_julia_animate/*.apng
+experiments/experiment6_julia_animate/*.gif
 
 # PyCharm files
 .idea/*
