@@ -19,9 +19,13 @@ mutable struct PusherSliderPlotParams
     sliderColor
     pusherColor
     CoMColor
+    MotionConeColor
+    FrictionConeColor
     x_lims
     y_lims
     showMotionConeVectors::Bool
+    showLineOfCentersOfRotation::Bool
+    fPusher
 end
 
 function GetDefaultPusherSliderPlotParams()::PusherSliderPlotParams
@@ -29,8 +33,11 @@ function GetDefaultPusherSliderPlotParams()::PusherSliderPlotParams
         false, # Show CoM
         0.5, # Slider Alpha
         :blue,:magenta,:red,
+        :green,:orange,
         [-0.25, 0.75 ],[-0.25, 0.75 ],
-        false)
+        false,
+        false,
+        [])
 end
 
 function GetPusherSlider()::PusherSlider
@@ -45,6 +52,26 @@ function GetPusherSlider()::PusherSlider
 
     # Return object
     return PusherSlider(s_mass, s_length, s_width, ps_cof, st_cof, p_radius)
+end
+
+"""
+tau_max
+Description
+    Returns the maximum frictional force and amount of torque allowed by the limit surface.
+"""
+function limit_surface_bounds(ps::PusherSlider)
+    # Constants
+    g = 10
+
+    # Create output
+    f_max = ps.st_cof * ps.s_mass * g
+
+    slider_area = ps.s_width*ps.s_length
+    # circular_density_integral = 2*pi*((ps.s_length/2)^2)*(1/2)
+    circular_density_integral = (1/12)*((ps.s_length/2).^2 + (ps.s_width/2).^2) * exp(1)
+    
+    tau_max = ps.st_cof * ps.s_mass * g * (1/slider_area) * circular_density_integral
+    return f_max, tau_max
 end
 
 function show(ps::PusherSlider, x)
@@ -70,7 +97,7 @@ function show(ps::PusherSlider, x, pParams::PusherSliderPlotParams)
     s_theta = x[3]
     p_y = x[4]
 
-    p_x = ps.s_length/2
+    p_x = -ps.s_length/2
 
     # Create the Slider
     # =================
@@ -102,7 +129,7 @@ function show(ps::PusherSlider, x, pParams::PusherSliderPlotParams)
 
     # Create the Pusher
     # =================
-    circle_center = [s_x; s_y] + rot * ( [ -p_x; p_y ] + [ -ps.p_radius; 0] )
+    circle_center = [s_x; s_y] + rot * ( [ p_x; p_y ] + [ -ps.p_radius; 0] )
     plot!(
         circleShape(circle_center[1],circle_center[2], ps.p_radius),
         seriestype=[:shape,],
@@ -125,23 +152,108 @@ function show(ps::PusherSlider, x, pParams::PusherSliderPlotParams)
     # Show Motion Cone vectors
     # ========================
     if pParams.showMotionConeVectors
-        circle_touch_point = [s_x; s_y] + rot * ( [ -p_x; p_y ] )
+        # prep
+        circle_touch_point = [s_x; s_y] + rot * ( [ p_x ; p_y ] )
+        rot2 = rotationMatrix(-(pi/2-s_theta))
+
         # Get Motion Cone Vectors, normalize them, and then scale them by box width
         v_plus, v_minus = get_motion_cone_vectors(ps,x)
+        # println("v_plus = $(v_plus) while v_minus = $(v_minus)")
+
         v_plus = v_plus ./ (LinearAlgebra.norm(v_plus,2))
-        v_plus = v_plus .* (ps.s_length/2)
+        v_plus = rot * v_plus .* (ps.s_length/2)
 
         v_minus = v_minus ./ (LinearAlgebra.norm(v_minus,2))
-        v_minus = v_minus .* (ps.s_length/2)
+        v_minus = rot * v_minus .* (ps.s_length/2)
 
         # Plot
         v_stacked = hcat(v_plus,v_minus) 
         quiver!(
             circle_touch_point[1]*ones(2,1), circle_touch_point[2]*ones(2,1),
             quiver=(v_stacked[1,:],v_stacked[2,:]),
+            c = pParams.MotionConeColor,
         )
     end
 
+    # Show Line Of Centers of Rotation
+    # ================================
+    if pParams.showLineOfCentersOfRotation
+        # Constants
+        rot2 = rotationMatrix(-(pi/2-s_theta))
+
+        # Get Motion Cone Vectors, normalize them, and then scale them by box width
+        v_plus, v_minus = get_motion_cone_vectors(ps,x)
+        println("v_plus: $(v_plus) with shape $(size(v_plus))")
+        
+        # Compute shortest distance between f_plus and f_minus from friction cone.
+        f_u, f_l = get_friction_cone_boundary_vectors(ps)
+        r_f_plus,tilde_r_f_plus,x_bar_plus = CoR_point_from_contact_force(
+            ps,
+            x,
+            rot2 * f_u)
+        r_f_minus,tilde_r_f_minus,x_bar_minus = CoR_point_from_contact_force(
+            ps,
+            x,
+            rot2 * f_l)
+
+        println("x_bar_plus = $(x_bar_plus) while x_bar_minus = $(x_bar_minus)")
+
+        plot!(
+            [x_bar_plus[1], x_bar_minus[1]],
+            [x_bar_plus[2], x_bar_minus[2]],
+            c = :black,
+            lw = 2,
+            seriestype=:scatter,
+        )
+
+        Z_plus = [s_x;s_y] + tilde_r_f_plus
+        Z_minus = [s_x;s_y] + tilde_r_f_minus
+
+        # Plot the End points of the line of centers of rotation
+        plot!(
+            [Z_plus[1],Z_minus[1]],
+            [Z_plus[2],Z_minus[2]],
+            c = pParams.FrictionConeColor,
+            seriestype=:scatter,
+        )
+        v_stacked = hcat(tilde_r_f_plus, tilde_r_f_minus)
+        quiver!(
+            s_x*ones(2,1),
+            s_y*ones(2,1),
+            quiver=(v_stacked[1,:],v_stacked[2,:]),
+            
+        ) # Draws arrows from the center of mass to the end points of the line of centers of rotation
+        
+        # Plot Friction Cone
+        pusher_tip = [s_x; s_y] + rot * ( [ p_x; p_y ] )
+        
+        f_u, f_l = get_friction_cone_boundary_vectors(ps)
+        # Scale unit vectors and rotate them into frame
+        f_u = rot2 * f_u .* (ps.s_length/2)
+        f_l = rot2 * f_l .* (ps.s_length/2)
+
+        v_stacked = hcat( f_u, f_l )
+        quiver!(
+            pusher_tip[1]*ones(2,1),
+            pusher_tip[2]*ones(2,1),
+            c = pParams.FrictionConeColor,
+            quiver=(
+                v_stacked[1,:],
+                v_stacked[2,:]
+            ),
+        )
+
+        # Plot line from CoM to Friction Cone
+        v_stacked = hcat(-r_f_plus, -r_f_minus)
+        quiver!(
+            s_x*ones(2,1),
+            s_y*ones(2,1),
+            quiver=(
+                v_stacked[1,:],
+                v_stacked[2,:]
+            ),
+        )
+    end
 
     # Return Plot Object
     return p
@@ -158,10 +270,9 @@ Inputs:
 function get_motion_cone_constants(ps::PusherSlider, x)
     # Constants
     g = 10
-    f_max = ps.st_cof * ps.s_mass * g
-    m_max = ps.st_cof * ps.s_mass * (ps.s_width/2)
+    f_max, m_max = limit_surface_bounds(ps)
 
-    c = f_max / m_max
+    c = m_max / f_max
 
     mu_ps = ps.ps_cof
 
@@ -174,8 +285,8 @@ function get_motion_cone_constants(ps::PusherSlider, x)
     p_y = x[4]
 
     # Compute vectors
-    gamma_plus = (mu_ps*c.^2 - p_x * p_y + mu_ps*p_x^2)/( c.^2 + p_y.^2-mu_ps*p_x*p_y )
-    gamma_minus = (-mu_ps*c.^2 - p_x * p_y - mu_ps*p_x^2)/( c.^2 + p_y.^2 + mu_ps*p_x*p_y )
+    gamma_plus = (mu_ps*c.^2 - p_x * p_y + mu_ps*p_x^2)/( c.^2 + p_y.^2 - mu_ps * p_x * p_y )
+    gamma_minus = (-mu_ps*c.^2 - p_x * p_y - mu_ps*p_x^2)/( c.^2 + p_y.^2 + mu_ps * p_x * p_y )
 
     return gamma_plus, gamma_minus
 end
@@ -226,7 +337,7 @@ function identify_mode(ps::PusherSlider, x , u)::String
 
 end
 
-function C(ps, x)
+function C(ps::PusherSlider, x)
     # Constants
     s_theta = x[3]
 
@@ -239,10 +350,9 @@ end
 function Q(ps, x)
     # Constants
     g = 10;
-    f_max = ps.st_cof * ps.s_mass * g
-    m_max = ps.st_cof * ps.s_mass * (ps.s_width/2)
+    f_max, m_max = limit_surface_bounds(ps)
 
-    c = f_max / m_max
+    c = m_max / f_max
 
     p_x = -ps.s_length/2
     p_y = x[4]
@@ -261,10 +371,9 @@ Description:
 function f1( ps::PusherSlider, x , u )
     # Constants
     g = 10;
-    f_max = ps.st_cof * ps.s_mass * g
-    m_max = ps.st_cof * ps.s_mass * (ps.s_width/2)
+    f_max, m_max = limit_surface_bounds(ps)
 
-    c = f_max / m_max
+    c = m_max / f_max
 
     p_x = -ps.s_length/2
 
@@ -295,10 +404,9 @@ Description:
 function f2( ps::PusherSlider, x , u )
     # Constants
     g = 10;
-    f_max = ps.st_cof * ps.s_mass * g
-    m_max = ps.st_cof * ps.s_mass * (ps.s_width/2)
+    f_max, m_max = limit_surface_bounds(ps)
 
-    c = f_max / m_max
+    c = m_max / f_max
 
     p_x = -ps.s_length/2
 
@@ -333,10 +441,9 @@ Description:
 function f3( ps::PusherSlider, x , u )
     # Constants
     g = 10;
-    f_max = ps.st_cof * ps.s_mass * g
-    m_max = ps.st_cof * ps.s_mass * (ps.s_width/2)
+    f_max, m_max = limit_surface_bounds(ps)
 
-    c = f_max / m_max
+    c = m_max / f_max
 
     p_x = -ps.s_length/2
 
@@ -382,4 +489,87 @@ function f( ps::PusherSlider , x , u )
     else
         throw("There was an unexpected mode detected: " + currMode)
     end
+end
+
+"""
+get_friction_cone_boundary_vectors
+Description
+
+Notes
+    The frame of reference will be the same as that of Hogan and Rodriguez (2016).
+    That is, into the block (orthogonal to surface) is the x-direction and along the surface is the y-direction.
+
+    Vectors are returned in reference to this frame
+"""
+function get_friction_cone_boundary_vectors(ps::PusherSlider)
+    # Constants
+
+    # Algorithm
+    f_u = LinearAlgebra.nullspace([1 ps.ps_cof])
+    f_u = f_u ./ LinearAlgebra.norm(f_u,2)
+
+    f_l = LinearAlgebra.nullspace([1 -ps.ps_cof])
+    f_l = f_l ./ LinearAlgebra.norm(f_l,2)
+
+    return f_u, f_l
+end
+
+"""
+contact_point
+Description:
+    Computes the contact point of the pusher with the slider.
+"""
+function contact_point(ps::PusherSlider, x)
+    # Constants
+    s_x = x[1]
+    s_y = x[2]
+    s_theta = x[3]
+    p_y = x[4]
+
+    p_x = -ps.s_length/2
+
+    rot = rotationMatrix(s_theta)
+
+    # Algorithm
+    return [s_x; s_y] + rot * [ p_x; p_y ]
+end
+
+
+"""
+CoR_point_from_contact_force
+Description:
+    Computes the two line segments that define where the dual of the input
+    contact force lies inside the slider.
+"""
+function CoR_point_from_contact_force(ps::PusherSlider, x , f)
+    # Constants
+    s_x = x[1]
+    s_y = x[2]
+    s_theta = x[3]
+    p_y = x[4]
+    p_x = -ps.s_length/2
+
+    f_max, m_max = limit_surface_bounds(ps)
+
+    # f_u, f_l = get_friction_cone_boundary_vectors(ps)
+
+    # Algorithm
+
+    x_bar = contact_point(ps, x) + f * ((([s_x; s_y]-contact_point(ps, x))'*f)/(f'*f)) 
+    
+    # Compute r_f
+    r_f_direction = [s_x;s_y] - x_bar
+    r_f_direction = r_f_direction ./ norm(r_f_direction,2)
+
+    rot_f = rotationMatrix(-s_theta) * f
+    r_f = abs(p_x * (rot_f[2])/(norm(rot_f,2)) ) * r_f_direction
+
+    # Compute tilde_r_f
+    c = m_max / f_max
+    tilde_r_f = c / norm(r_f,2)
+    tilde_r_f = tilde_r_f * r_f_direction # Has same direction as r_f
+
+    println("tilde_r_f = $(tilde_r_f) with norm $(norm(tilde_r_f,2))")
+
+    return r_f, tilde_r_f, x_bar
 end

@@ -158,6 +158,7 @@ experiments/experiment5_plotting_friction_cone/*.png
 experiments/experiment6_julia_animate/*.png
 experiments/experiment6_julia_animate/*.apng
 experiments/experiment6_julia_animate/*.gif
+experiments/experiment7_differential_flatness1/*.png
 
 # PyCharm files
 .idea/*

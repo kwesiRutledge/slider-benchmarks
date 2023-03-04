@@ -14,3 +14,11 @@ function circleShape(h, k, r)
     h .+ r*sin.(theta), k .+ r*cos.(theta)
 end
 
+"""
+rotationMatrix(theta)
+Description
+    This function returns the rotation matrix for a rotation of theta radians.
+"""
+function rotationMatrix(theta)
+    return [cos(theta) -sin(theta); sin(theta) cos(theta)]
+end
