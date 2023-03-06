@@ -1,8 +1,13 @@
 """
-pusher_slider.jl
+pusher_slider_sticking_fi.jl
+Description:
+    This file contains the code for modeling the pusher slider system
+    with
+    - sticking friction (so no movement of pusher w.r.t. slider) and
+    - force inputs to the pusher slider.
 """
 
-struct PusherSlider
+mutable struct PusherSliderStickingFI
     # Inertial Parameters
     s_mass::Float64
     # Geometric Parameters
@@ -11,37 +16,12 @@ struct PusherSlider
     ps_cof::Float64
     st_cof::Float64
     p_radius::Float64
+    # Center Of Mass Position
+    p_x::Float64    # Center of Mass Position's x coordinate w.r.t. contact point
+    p_y::Float64    # Center of Mass Position's y coordinate w.r.t. contact point
 end
 
-mutable struct PusherSliderPlotParams
-    showCenterOfMass::Bool
-    sliderAlpha::Float64
-    sliderColor
-    pusherColor
-    CoMColor
-    MotionConeColor
-    FrictionConeColor
-    x_lims
-    y_lims
-    showMotionConeVectors::Bool
-    showLineOfCentersOfRotation::Bool
-    fPusher
-    showFrictionConeVectors::Bool
-end
-
-function GetDefaultPusherSliderPlotParams()::PusherSliderPlotParams
-    return PusherSliderPlotParams(
-        false, # Show CoM
-        0.5, # Slider Alpha
-        :blue,:magenta,:red,
-        :green,:orange,
-        [-0.25, 0.75 ],[-0.25, 0.75 ],
-        false,
-        false,[],
-        false)
-end
-
-function GetPusherSlider()::PusherSlider
+function GetPusherSliderStickingFI()::PusherSliderStickingFI
     # Default Parameters
     s_mass = 1.05 # kg
     s_length = 0.09 # m
@@ -52,7 +32,12 @@ function GetPusherSlider()::PusherSlider
     p_radius = 0.01 # m
 
     # Return object
-    return PusherSlider(s_mass, s_length, s_width, ps_cof, st_cof, p_radius)
+    return PusherSliderStickingFI(
+        s_mass,
+        s_length, s_width,
+        ps_cof, st_cof,
+        p_radius,
+        -s_length/2,0)
 end
 
 """
@@ -60,7 +45,7 @@ tau_max
 Description
     Returns the maximum frictional force and amount of torque allowed by the limit surface.
 """
-function limit_surface_bounds(ps::PusherSlider)
+function limit_surface_bounds(ps::PusherSliderStickingFI)
     # Constants
     g = 10
 
@@ -75,7 +60,22 @@ function limit_surface_bounds(ps::PusherSlider)
     return f_max, tau_max
 end
 
-function show(ps::PusherSlider, x)
+"""
+check_state
+Description:
+    Checks if the state is valid.
+"""
+function check_state(ps::PusherSliderStickingFI, x)
+    # Constants
+
+    # Algorithm
+    if length(x) != 3
+        error("x must be a 3x1 vector")
+    end
+
+end
+
+function show(ps::PusherSliderStickingFI, x)
     # Constants
 
     # Define Plot Params
@@ -89,16 +89,19 @@ end
 Plot
 Description:
 """
-function show(ps::PusherSlider, x, pParams::PusherSliderPlotParams)
+function show(ps::PusherSliderStickingFI, x, pParams::PusherSliderPlotParams)
+    # Input Processing
+    check_state(ps,x)
+    
     # Constants
     #rectangle(w, h, x, y) = Shape(x + [0,w,w,0], y + [0,0,h,h]) # define a function that returns a Plots.Shape
 
     s_x = x[1]
     s_y = x[2]
     s_theta = x[3]
-    p_y = x[4]
-
-    p_x = -ps.s_length/2
+    
+    p_y = ps.p_y
+    p_x = ps.p_x
 
     # Create the Slider
     # =================
@@ -130,7 +133,7 @@ function show(ps::PusherSlider, x, pParams::PusherSliderPlotParams)
 
     # Create the Pusher
     # =================
-    circle_center = [s_x; s_y] + rot * ( [ p_x; p_y ] + [ -ps.p_radius; 0] )
+    circle_center = contact_point(ps,x) + rot * ( [ -ps.p_radius; 0] )
     plot!(
         circleShape(circle_center[1],circle_center[2], ps.p_radius),
         seriestype=[:shape,],
@@ -142,9 +145,10 @@ function show(ps::PusherSlider, x, pParams::PusherSliderPlotParams)
     # Draw Center Of Mass 
     # ===================
     if pParams.showCenterOfMass
+        CoM = contact_point(ps,x) + rot * ( -[p_x; p_y])
         plot!(
-            [s_x],
-            [s_y],
+            [CoM[1]],
+            [CoM[2]],
             c = :red,
             seriestype=:scatter,
         )
@@ -154,7 +158,7 @@ function show(ps::PusherSlider, x, pParams::PusherSliderPlotParams)
     # ========================
     if pParams.showMotionConeVectors
         # prep
-        circle_touch_point = [s_x; s_y] + rot * ( [ p_x ; p_y ] )
+        circle_touch_point = contact_point(ps,x)
         rot2 = rotationMatrix(-(pi/2-s_theta))
 
         # Get Motion Cone Vectors, normalize them, and then scale them by box width
@@ -162,10 +166,10 @@ function show(ps::PusherSlider, x, pParams::PusherSliderPlotParams)
         # println("v_plus = $(v_plus) while v_minus = $(v_minus)")
 
         v_plus = v_plus ./ (LinearAlgebra.norm(v_plus,2))
-        v_plus = rot * v_plus .* (ps.s_length/2)
+        v_plus = rot2 * v_plus .* (ps.s_length/2)
 
         v_minus = v_minus ./ (LinearAlgebra.norm(v_minus,2))
-        v_minus = rot * v_minus .* (ps.s_length/2)
+        v_minus = rot2 * v_minus .* (ps.s_length/2)
 
         # Plot
         v_stacked = hcat(v_plus,v_minus) 
@@ -176,9 +180,35 @@ function show(ps::PusherSlider, x, pParams::PusherSliderPlotParams)
         )
     end
 
+    # Show Friction Cone vectors
+    # ==========================
+    if pParams.showFrictionConeVectors
+        # Plot Friction Cone
+        pusher_tip = contact_point(ps,x)
+        rot2 = rotationMatrix(-(pi/2-s_theta))
+        
+        f_u, f_l = get_friction_cone_boundary_vectors(ps)
+        # Scale unit vectors and rotate them into frame
+        f_u = rot2 * f_u .* (ps.s_length/2)
+        f_l = rot2 * f_l .* (ps.s_length/2)
+
+        v_stacked = hcat( f_u, f_l )
+        quiver!(
+            pusher_tip[1]*ones(2,1),
+            pusher_tip[2]*ones(2,1),
+            c = pParams.FrictionConeColor,
+            quiver=(
+                v_stacked[1,:],
+                v_stacked[2,:]
+            ),
+        )
+    end
+
     # Show Line Of Centers of Rotation
     # ================================
     if pParams.showLineOfCentersOfRotation
+        error("Not implemented yet")
+
         # Constants
         rot2 = rotationMatrix(-(pi/2-s_theta))
 
@@ -261,6 +291,23 @@ function show(ps::PusherSlider, x, pParams::PusherSliderPlotParams)
 end
 
 """
+Jp
+Description:
+    This jacobian matrix is created by using the formula in Zhou et al.'s 
+    2020 paper on the pusher slider system. The formula is:
+        Jp = [  1 0 -p_y;
+                0 1 p_x]
+"""
+function Jp(ps::PusherSliderStickingFI)
+    # Constants
+    p_y = ps.p_y
+    p_x = ps.p_x
+
+    # Algorithm
+    return [1 0 p_x; 0 1 -p_y] # The p_y and p_x are flipped due to the coordinate system choice
+end
+
+"""
 get_motion_cone_constants
 Description:
     Computes the motion cone vectors at the current state which determine when the
@@ -268,228 +315,53 @@ Description:
 Inputs:
     x - Current state.
 """
-function get_motion_cone_constants(ps::PusherSlider, x)
+function get_motion_cone_vectors(ps::PusherSliderStickingFI, x)
+    # Input Processing
+    check_state(ps,x)
+    
     # Constants
-    g = 10
     f_max, m_max = limit_surface_bounds(ps)
 
-    c = m_max / f_max
+    a = (1/10) * (1/(f_max.^2))
+    b = (1/10) * (1/(m_max.^2))
 
-    mu_ps = ps.ps_cof
-
-    p_x = -ps.s_length/2
-
-    # Get Current state
-    s_x = x[1]
-    s_y = x[2]
-    s_theta = x[3]
-    p_y = x[4]
+    A = diagm([a,a,b])
 
     # Compute vectors
-    gamma_plus = (mu_ps*c.^2 - p_x * p_y + mu_ps*p_x^2)/( c.^2 + p_y.^2 - mu_ps * p_x * p_y )
-    gamma_minus = (-mu_ps*c.^2 - p_x * p_y - mu_ps*p_x^2)/( c.^2 + p_y.^2 + mu_ps * p_x * p_y )
+    f_u, f_l = get_friction_cone_boundary_vectors(ps)
 
-    return gamma_plus, gamma_minus
+    u_u = Jp(ps) * A * Jp(ps)' * f_u
+    u_l = Jp(ps) * A * Jp(ps)' * f_l
+
+    return u_u, u_l
 end
 
 """
-get_motion_cone_vectors
+dynamics
 Description:
-    Computes the motion cone vectors at the current state which determine when the
-    pusher is sticking/sliding with the slider.
-Inputs:
-    x - Current state.
+    Computes the dynamics of the pusher slider system with given state and
+    force input to sticking pusher slider.
 """
-function get_motion_cone_vectors(ps::PusherSlider,x)
+function dynamics(ps::PusherSliderStickingFI, x, u)
+    # Input Processing
+    check_state(ps,x)
+
     # Constants
-    gamma_plus, gamma_minus = get_motion_cone_constants(ps,x)
+    theta_W = x[3]
+    Rtheta = rotationMatrix(theta_W)
 
-    # Algorithm
-    return [1; gamma_plus], [1; gamma_minus]
-end
-
-"""
-identify_mode
-Description:
-    Determines the mode of the sliding object w.r.t. the slider (mode is either sticking, sliding up, or sliding down).
-    The mode is determined by the input u, a two-dimensional vector.
-       u =  [ v_n ]
-            [ v_t ]
-
-"""
-function identify_mode(ps::PusherSlider, x , u)::String
-    # Constants
-
-    # Variables
-    v_n = u[1]
-    v_t = u[2]
-
-    # Motion Cone Vector Constants
-    gamma_plus, gamma_minus = get_motion_cone_constants(ps,x)
-
-    # Algorithm
-    if ( v_t <= gamma_plus * v_n) && ( v_t >= gamma_minus * v_n )
-        return "Sticking"
-    elseif v_t > gamma_plus * v_n
-        return "SlidingUp"
-    else
-        return "SlidingDown"
-    end
-
-end
-
-function C(ps::PusherSlider, x)
-    # Constants
-    s_theta = x[3]
-
-    # Algorithm
-    return [    cos(s_theta)    sin(s_theta) ; 
-                -sin(s_theta)   cos(s_theta) ]
+    f_max, m_max = limit_surface_bounds(ps)
     
-end
+    a = (1/10) * (1/(f_max.^2))
+    b = (1/10) * (1/(m_max.^2))
 
-function Q(ps, x)
-    # Constants
-    g = 10;
-    f_max, m_max = limit_surface_bounds(ps)
+    A = diagm([a,a,b])
 
-    c = m_max / f_max
-
-    p_x = -ps.s_length/2
-    p_y = x[4]
+    Jp_transpose = Jp(ps)'
 
     # Algorithm
-    return (1/( c.^2 + p_x.^2 + p_y.^2 )) * 
-            [   c.^2 + p_x.^2   p_x * p_y ; 
-                p_x * p_y       c.^2 + p_y.^2 ]
-end
+    return Rtheta * A * Jp_transpose * u
 
-"""
-f1
-Description:
-    Dynamics of the "sticking" mode of the system.
-"""
-function f1( ps::PusherSlider, x , u )
-    # Constants
-    g = 10;
-    f_max, m_max = limit_surface_bounds(ps)
-
-    c = m_max / f_max
-
-    p_x = -ps.s_length/2
-
-    # State
-    p_y = x[4]
-
-    # Algorithm
-    C0 = C(ps, x)
-    Q0 = Q(ps, x)
-
-    b1 = (1/(c.^2 + p_x.^2+p_y.^2)) * [ -p_y p_x ]
-    c1 = [ 0 0 ]
-
-    P1 = I
-
-    dxdt = [    C0' * Q0 * P1 ;
-                b1 ; 
-                c1 ] * u
-
-    return dxdt
-end
-
-"""
-f2
-Description:
-    Dynamics of the "SlidingUp" mode.
-"""
-function f2( ps::PusherSlider, x , u )
-    # Constants
-    g = 10;
-    f_max, m_max = limit_surface_bounds(ps)
-
-    c = m_max / f_max
-
-    p_x = -ps.s_length/2
-
-    # Motion Cone Vector Constants
-    gamma_plus, gamma_minus = get_motion_cone_constants(ps,x)
-
-    # State
-    p_y = x[4]
-
-    # Algorithm
-    C0 = C(ps, x)
-    Q0 = Q(ps, x)
-
-    b2 = (1/(c.^2 + p_x.^2+p_y.^2)) * [ -p_y+gamma_plus*p_x 0 ]
-    c2 = [ -gamma_plus 0 ]
-
-    P2 = [  1           0;
-            gamma_plus  0 ]
-
-    dxdt = [    C0' * Q0 * P2 ;
-                b2 ;
-                c2 ] * u
-    
-    return dxdt
-end
-
-"""
-f3
-Description:
-    Dynamics of the "SlidingDown" mode.
-"""
-function f3( ps::PusherSlider, x , u )
-    # Constants
-    g = 10;
-    f_max, m_max = limit_surface_bounds(ps)
-
-    c = m_max / f_max
-
-    p_x = -ps.s_length/2
-
-    # Motion Cone Vector Constants
-    gamma_plus, gamma_minus = get_motion_cone_constants(ps,x)
-
-    # State
-    p_y = x[4]
-
-    # Algorithm
-    C0 = C(ps, x)
-    Q0 = Q(ps, x)
-
-    b3 = (1/(c.^2 + p_x.^2+p_y.^2)) * [ -p_y+gamma_minus*p_x 0 ]
-    c3 = [ -gamma_minus 0 ]
-
-    P3 = [  1       0;
-            gamma_minus 0 ]
-
-    dxdt = [    C0' * Q0 * P3 ;
-                b3 ; 
-                c3 ] * u
-    
-    return dxdt
-end
-
-"""
-f
-Description:
-    Defines the switched nonlinear dynamical system for the pusher slider system.
-"""
-function f( ps::PusherSlider , x , u )
-    # Constants
-
-    # Algorithm
-    currMode = identify_mode(ps, x, u)
-    if currMode == "Sticking"
-        return f1(ps,x,u)
-    elseif currMode == "SlidingUp"
-        return f2(ps,x,u)
-    elseif currMode == "SlidingDown"
-        return f3(ps,x,u)
-    else
-        throw("There was an unexpected mode detected: " + currMode)
-    end
 end
 
 """
@@ -502,7 +374,7 @@ Notes
 
     Vectors are returned in reference to this frame
 """
-function get_friction_cone_boundary_vectors(ps::PusherSlider)
+function get_friction_cone_boundary_vectors(ps::PusherSliderStickingFI)
     # Constants
 
     # Algorithm
@@ -519,20 +391,18 @@ end
 contact_point
 Description:
     Computes the contact point of the pusher with the slider.
+    This point should always be in the center of the object.
 """
-function contact_point(ps::PusherSlider, x)
+function contact_point(ps::PusherSliderStickingFI, x)
     # Constants
     s_x = x[1]
     s_y = x[2]
     s_theta = x[3]
-    p_y = x[4]
-
-    p_x = -ps.s_length/2
 
     rot = rotationMatrix(s_theta)
 
     # Algorithm
-    return [s_x; s_y] + rot * [ p_x; p_y ]
+    return [s_x; s_y] + rot * [ -(ps.s_length/2) ; 0 ]
 end
 
 
@@ -542,7 +412,7 @@ Description:
     Computes the two line segments that define where the dual of the input
     contact force lies inside the slider.
 """
-function CoR_point_from_contact_force(ps::PusherSlider, x , f)
+function CoR_point_from_contact_force(ps::PusherSliderStickingFI, x , f)
     # Constants
     s_x = x[1]
     s_y = x[2]
