@@ -5,14 +5,13 @@ Description:
     (maybe I will also save videos/gifs?).
 """
 
-import sys, time
+import sys
 
 import matplotlib.pyplot as plt
-from jax import jit
 import jax.numpy as jnp
 
 sys.path.append('../')
-from src.pusher_slider import PusherSliderSystem
+from src.python.pusher_slider import PusherSliderSystem
 
 # Constants
 ps = PusherSliderSystem()

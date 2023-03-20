@@ -8,7 +8,7 @@ Description:
 from jax import grad
 import jax.numpy as jnp
 import time
-from src.pusher_slider import PusherSliderSystem
+from src.python.pusher_slider import PusherSliderSystem
 
 
 """
