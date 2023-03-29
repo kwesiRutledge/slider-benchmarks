@@ -9,8 +9,8 @@ import sys, unittest
 import matplotlib.pyplot as plt
 import jax.numpy as jnp
 
-sys.path.append('../../')
-from src.pusher_slider import PusherSliderSystem
+sys.path.append('../../../')
+from src.python.pusher_slider import PusherSliderSystem
 
 class PusherSliderTest(unittest.TestCase):
     """

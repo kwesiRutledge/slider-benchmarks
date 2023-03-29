@@ -9,8 +9,8 @@ import sys, unittest
 import matplotlib.pyplot as plt
 import jax.numpy as jnp
 
-sys.path.append('../../')
-from src.pusher_slider import PusherSliderSystem
+sys.path.append('../../../')
+from src.python.pusher_slider import PusherSliderSystem
 
 class PusherSlider_CircleTest1(unittest.TestCase):
     """
@@ -31,7 +31,7 @@ class PusherSlider_CircleTest1(unittest.TestCase):
         T = 15.0
         dt = 0.05
 
-        data_dir_name = "../../data/modeling1/"
+        data_dir_name = "../../../data/modeling1/"
         image_filename1 = data_dir_name + "hogan_circle.png"
         image_filename2 = data_dir_name + "hogan_circle_all_dims.png"
 

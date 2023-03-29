@@ -7,13 +7,12 @@ Description:
 import sys
 import unittest
 
-import matplotlib.pyplot as plt
 from jax import grad
 import jax.numpy as jnp
 
-sys.path.append('../../')
-from src.pusher_slider import PusherSliderSystem
-from src.simple_traj_opt import simple_endpoint_traj_opt
+sys.path.append('../../../')
+from src.python.pusher_slider import PusherSliderSystem
+from src.python.simple_traj_opt import simple_endpoint_traj_opt
 
 
 class L2TrajectoryOptimizationTest(unittest.TestCase):

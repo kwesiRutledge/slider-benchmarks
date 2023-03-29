@@ -12,8 +12,8 @@ import jax.numpy as jnp
 import numpy, datetime
 import scipy.io
 
-sys.path.append('../../')
-from src.pusher_slider import PusherSliderSystem
+sys.path.append('../../../')
+from src.python.pusher_slider import PusherSliderSystem
 
 class PusherSlider_CircleTest1(unittest.TestCase):
     """
@@ -34,7 +34,7 @@ class PusherSlider_CircleTest1(unittest.TestCase):
         T = 15.0
         dt = 0.05
 
-        data_dir_name = "../../data/flowmap1/"
+        data_dir_name = "../../../data/flowmap1/"
         image_filename1 = data_dir_name + "dataset_trajectories.png"
         image_filename2 = data_dir_name + "hogan_circle_all_dims.png"
         data_filename1 = data_dir_name + "dataset_x_" + datetime.datetime.now().strftime("%B%d%Y-%I%M%p") + ".mat"
