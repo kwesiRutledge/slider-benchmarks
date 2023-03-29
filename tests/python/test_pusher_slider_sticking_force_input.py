@@ -141,19 +141,52 @@ class Test_PusherSliderStickingForceInput(unittest.TestCase):
         # Compute g
         G = aps._G(x, theta)
 
-        assert G.shape == (1, 3, 2), f"Expected F.shape = (1, 3, 2), received: {g.shape}"
+        batch_size = x.shape[0]
+
+        assert G.shape == (batch_size, aps.n_dims, aps.n_controls, aps.n_params),\
+            f"Expected F.shape = ({batch_size}, {aps.n_dims}, {aps.n_controls}, {aps.n_params}), received: {G.shape}"
 
         # Check where zeros should be
         assert jnp.isclose(
-            G.at[0, AdaptivePusherSliderStickingForceInputSystem.S_THETA, AdaptivePusherSliderStickingForceInputSystem.F_X].get(),
+            G.at[
+                0,
+                AdaptivePusherSliderStickingForceInputSystem.S_THETA,
+                AdaptivePusherSliderStickingForceInputSystem.F_X,
+                AdaptivePusherSliderStickingForceInputSystem.C_X,
+            ].get(),
             0.0,
-        ), f"Expected g[0, {AdaptivePusherSliderStickingForceInputSystem.S_THETA}, {AdaptivePusherSliderStickingForceInputSystem.F_X}] = 0.0, received: {g.at[0, AdaptivePusherSliderStickingForceInputSystem.S_THETA, AdaptivePusherSliderStickingForceInputSystem.F_X].get()}"
+        ), f"Expected G[0, {AdaptivePusherSliderStickingForceInputSystem.S_THETA}, {AdaptivePusherSliderStickingForceInputSystem.F_X}, {AdaptivePusherSliderStickingForceInputSystem.C_X}] = 0.0, received: {G.at[0, AdaptivePusherSliderStickingForceInputSystem.S_THETA, AdaptivePusherSliderStickingForceInputSystem.F_X, AdaptivePusherSliderStickingForceInputSystem.C_X].get()}"
 
         assert jnp.isclose(
-            g.at[
-                0, AdaptivePusherSliderStickingForceInputSystem.S_THETA, AdaptivePusherSliderStickingForceInputSystem.F_Y].get(),
+            G.at[
+                0,
+                AdaptivePusherSliderStickingForceInputSystem.S_THETA,
+                AdaptivePusherSliderStickingForceInputSystem.F_Y,
+                AdaptivePusherSliderStickingForceInputSystem.C_Y,
+            ].get(),
             0.0,
-        ), f"Expected g[0, {AdaptivePusherSliderStickingForceInputSystem.S_THETA}, {AdaptivePusherSliderStickingForceInputSystem.F_Y}] = 0.0, received: {g.at[0, AdaptivePusherSliderStickingForceInputSystem.S_THETA, AdaptivePusherSliderStickingForceInputSystem.F_Y].get()}"
+        ), f"Expected G[0, {AdaptivePusherSliderStickingForceInputSystem.S_THETA}, {AdaptivePusherSliderStickingForceInputSystem.F_Y}, {AdaptivePusherSliderStickingForceInputSystem.C_Y}] = 0.0, received: {G.at[0, AdaptivePusherSliderStickingForceInputSystem.S_THETA, AdaptivePusherSliderStickingForceInputSystem.F_Y, AdaptivePusherSliderStickingForceInputSystem.C_Y].get()}"
+
+        # Check where NON-zeros should be
+        assert jnp.isclose(
+            G.at[
+                0,
+                AdaptivePusherSliderStickingForceInputSystem.S_THETA,
+                AdaptivePusherSliderStickingForceInputSystem.F_X,
+                AdaptivePusherSliderStickingForceInputSystem.C_Y,
+            ].get(),
+            -b,
+        ), f"Expected G[0, {AdaptivePusherSliderStickingForceInputSystem.S_THETA}, {AdaptivePusherSliderStickingForceInputSystem.F_X}, {AdaptivePusherSliderStickingForceInputSystem.C_Y}] = {-b}, received: {G.at[0, AdaptivePusherSliderStickingForceInputSystem.S_THETA, AdaptivePusherSliderStickingForceInputSystem.F_X, AdaptivePusherSliderStickingForceInputSystem.C_Y].get()}"
+
+        assert jnp.isclose(
+            G.at[
+                0,
+                AdaptivePusherSliderStickingForceInputSystem.S_THETA,
+                AdaptivePusherSliderStickingForceInputSystem.F_Y,
+                AdaptivePusherSliderStickingForceInputSystem.C_X,
+            ].get(),
+            b,
+        ), f"Expected G[0, {AdaptivePusherSliderStickingForceInputSystem.S_THETA}, {AdaptivePusherSliderStickingForceInputSystem.F_Y}, {AdaptivePusherSliderStickingForceInputSystem.C_X}] = {b}, received: {G.at[0, AdaptivePusherSliderStickingForceInputSystem.S_THETA, AdaptivePusherSliderStickingForceInputSystem.F_Y, AdaptivePusherSliderStickingForceInputSystem.C_X].get()}"
 
 if __name__ == '__main__':
     unittest.main()

@@ -206,6 +206,7 @@ class AdaptivePusherSliderStickingForceInputSystem(object):
 
     def _G(self, x: jnp.array, params: Scenario) -> jnp.array:
         """
+        G = self._G(x, params)
         Return the control-dependent and parameter-dependent part of the control-affine dynamics.
         args:
             x: bs x self.n_dims tensor of state
@@ -222,17 +223,17 @@ class AdaptivePusherSliderStickingForceInputSystem(object):
         b = (1 / 10.0) * (1 / (tau_max ** 2))
 
         # States
-        s_x = x[:, AdaptivePusherSliderStickingForceInputSystem.S_X]
-        s_y = x[:, AdaptivePusherSliderStickingForceInputSystem.S_Y]
-        s_theta = x[:, AdaptivePusherSliderStickingForceInputSystem.S_THETA]
+        s_x = x.at[:, AdaptivePusherSliderStickingForceInputSystem.S_X].get()
+        s_y = x.at[:, AdaptivePusherSliderStickingForceInputSystem.S_Y].get()
+        s_theta = x.at[:, AdaptivePusherSliderStickingForceInputSystem.S_THETA].get()
 
         # Create output
-        G = torch.zeros((batch_size, self.n_dims, self.n_controls, self.n_params)).to(self.device)
+        G = jnp.zeros((batch_size, self.n_dims, self.n_controls, self.n_params))
 
-        G[:, AdaptivePusherSliderStickingForceInputSystem.S_THETA, AdaptivePusherSliderStickingForceInputSystem.F_X,
-        AdaptivePusherSliderStickingForceInputSystem.C_Y] = -b
-        G[:, AdaptivePusherSliderStickingForceInputSystem.S_THETA, AdaptivePusherSliderStickingForceInputSystem.F_Y,
-        AdaptivePusherSliderStickingForceInputSystem.C_X] = b
+        G = G.at[:, AdaptivePusherSliderStickingForceInputSystem.S_THETA, AdaptivePusherSliderStickingForceInputSystem.F_X,
+        AdaptivePusherSliderStickingForceInputSystem.C_Y].set(-b)
+        G = G.at[:, AdaptivePusherSliderStickingForceInputSystem.S_THETA, AdaptivePusherSliderStickingForceInputSystem.F_Y,
+        AdaptivePusherSliderStickingForceInputSystem.C_X].set(b)
 
         return G
 
