@@ -7,14 +7,13 @@ Description:
 import sys, time, datetime
 
 import matplotlib.pyplot as plt
-from jax import grad
 import jax.numpy as jnp
 
 import yaml
 
 sys.path.append('../')
-from src.pusher_slider import PusherSliderSystem
-from src.simple_traj_opt import simple_endpoint_traj_opt, ic_traj_opt
+from src.python.pusher_slider import PusherSliderSystem
+from src.python.simple_traj_opt import ic_traj_opt
 
 # Constants
 ps = PusherSliderSystem()
@@ -103,7 +102,7 @@ plt.title('Trajectory With Constant u=[0.1;0] input')
 plt.savefig("../data/traj_opt1/simulate1-u_01-t_y.png")
 
 plt.figure()
-plt.plot(jnp.arange(start=0,stop=N_points*dt+dt,step=dt),x[:,2])
+plt.plot(jnp.arange(start=0,stop=N_points*dt+dt, step=dt),x[:,2])
 plt.xlabel('t')
 plt.ylabel('s_theta')
 plt.savefig("../data/traj_opt1/simulate1-u_01-t_sTheta.png")
@@ -117,7 +116,7 @@ plt.savefig("../data/traj_opt1/simulate1-u_01-t_p_y.png")
 # Save data
 filename = '../data/traj_opt1/traj_opt1_results-' + datetime.datetime.now().strftime("%B%d%Y-%I%M%p") + '.yml'
 
-with open(filename,'w') as outfile:
+with open(filename, 'w') as outfile:
     yaml.dump(traj_opt_results, outfile, default_flow_style=False)
 
 # Compare runtimes with clf-based control.
@@ -125,18 +124,18 @@ with open(filename,'w') as outfile:
 # read data from text file in clf_control1
 file1 = open('../data/clf_control1/clf_control1_results_20221128-045723.txt', 'r')
 Lines = file1.readlines()
-print(jnp.fromstring(Lines[0],sep=' '))
+print(jnp.fromstring(Lines[0], sep=' '))
 setup_time_sos = jnp.fromstring(Lines[0],sep=' ')
 mean_data = []
 for line in Lines[1:]:
-    mean_data.append( jnp.mean(jnp.fromstring(line,sep=' ')) )
+    mean_data.append(jnp.mean(jnp.fromstring(line,sep=' ')) )
 
 X_axis = jnp.array([-1.0,1.0])
 
 fig_out = plt.figure()
-plt.bar(X_axis - 0.2, jnp.array([setup_time_sos[0],jnp.mean(jnp.array(mean_data) )]), 0.4, label = 'CLF')
-plt.bar(X_axis + 0.2, jnp.array([ jnp.mean(jnp.array(traj_opt_results["ic0"]["times"])) , jnp.mean(jnp.array(traj_opt_results["simulation_times"])) ]), 0.4, label = 'TrajOpt')
-plt.xticks(X_axis, ["Precomputation","Online Computation"])
+plt.bar(X_axis - 0.2, jnp.array([setup_time_sos[0], jnp.mean(jnp.array(mean_data) )]), 0.4, label = 'CLF')
+plt.bar(X_axis + 0.2, jnp.array([jnp.mean(jnp.array(traj_opt_results["ic0"]["times"])), jnp.mean(jnp.array(traj_opt_results["simulation_times"]))]), 0.4, label='TrajOpt')
+plt.xticks(X_axis, ["Precomputation", "Online Computation"])
 plt.ylabel('s')
 plt.legend()
 plt.title('Comparison of CLF and Trajectory Optimization (Static PS)')
@@ -157,7 +156,7 @@ plt.title('Precomputation Time of CLF vs. Trajectory Optimization Policies')
 fig_out.savefig('../data/traj_opt1/timing_comparison_static-p1.png')
 
 fig_out = plt.figure()
-plt.bar(X_axis2 - 0.2, jnp.mean(jnp.array(mean_data) ), 0.4, label='CLF')
+plt.bar(X_axis2 - 0.2, jnp.mean(jnp.array(mean_data)), 0.4, label='CLF')
 plt.bar(X_axis2 + 0.2, jnp.mean(jnp.array(traj_opt_results["simulation_times"])), 0.4, label='TrajOpt')
 # plt.xticks(X_axis2, ["Online Computation"])
 plt.ylabel('s')
