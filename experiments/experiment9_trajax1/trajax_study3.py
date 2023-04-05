@@ -87,71 +87,38 @@ if __name__ == '__main__':
 
         return x + ps.dt * x_dot
 
-
-    @jax.jit
-    def ps_dynamics_elt0(state: jnp.array, action: jnp.array, time_step: int) -> jnp.array:
-        """
-        simple_dynamics
-
-        Description:
-            Defines a 2d single integrator system's dynamics.
-
-        Inputs:
-            state - n-dimensional state vector
-            action - d-dimensional action vector
-        Outputs:
-            x_next - n-dimensional state vector representing the derivative of the state
-        """
-
-        # Constants
-
-        # Compute Dynamics
-        x = state
-        u = action
-
-        x_dot = ps.closed_loop_dynamics(x, u)
-        x_next = x + ps.dt * x_dot
-
-        return x_next[2]
-
     # Run ilqr trajopt
     U0 = jnp.zeros((horizon, n_u))
     U0 = U0.at[:, 1].set(1.0)
-    X, U, opt_obj, gradient, adjoints, lqr, iteration = optimizers.ilqr(
+    X, U, opt_obj, gradient, iteration = optimizers.scipy_minimize(
         ps_cost, ps_dynamics,
         x0,
         U0,
-        grad_norm_threshold=1e-2,
-        maxiter=1000,
-        alpha_0=100.0,
+        method='Newton-CG',
     )
     if jnp.isclose(U, U0).all():
-        print("Trajectory Optimization May Have Failed...")
+        print("Trajectory Optimization Failed")
     else:
+
         print("U = ", U)
 
-    if jnp.isnan(U).any():
-        print("Trajectory Optimization Failed! (NaN's in U)")
-
-    print("iteration = ", iteration)
-    print("X = ", X)
-    print("opt_obj = ", opt_obj)
-
-    print("gradient = ", gradient)
-
-    print(jax.grad(ps_cost, argnums=[0, 1])(X[0, :], U0[0, :], 0))
-    print(jax.grad(ps_dynamics_elt0,  argnums=[0, 1])(X[0, :], U0[0, :], 0))
-
-    exit(0)
-
-    print("ps.closed_loop_dynamics(X[0, :], U[0, :]) = ", ps.closed_loop_dynamics(X[0, :], U[0, :]))
-    print("x1 = x0 + ps.dt * ps.closed_loop_dynamics(X[0, :], U[0, :]) = ", X[0, :] + ps.dt * ps.closed_loop_dynamics(X[0, :], U[0, :]))
-    print("ps.closed_loop_dynamics(X[1, :], U[1, :]) = ", ps.closed_loop_dynamics(X[1, :], U[1, :]))
-
-    print("ps.closed_loop_dynamics(X[0, :], [0, 10.0]) = ", ps.closed_loop_dynamics(X[0, :], jnp.array([0.0, 10.0])))
-    print("x1 = x0 + ps.dt * ps.closed_loop_dynamics(X[0, :], [0, 10.0]) = ",
-          X[0, :] + ps.dt * ps.closed_loop_dynamics(X[0, :], jnp.array([0.0, 2.0])))
-    print("ps.closed_loop_dynamics(X[1, :], [0, 10.0]) = ", ps.closed_loop_dynamics(X[1, :], jnp.array([0.0, 10.0])))
+    # print("iteration = ", iteration)
+    # print("X = ", X)
+    # print("opt_obj = ", opt_obj)
+    #
+    # print("ps.closed_loop_dynamics(X[0, :], U[0, :]) = ", ps.closed_loop_dynamics(X[0, :], U[0, :]))
+    # print("x1 = x0 + ps.dt * ps.closed_loop_dynamics(X[0, :], U[0, :]) = ", X[0, :] + ps.dt * ps.closed_loop_dynamics(X[0, :], U[0, :]))
+    # print("ps.closed_loop_dynamics(X[1, :], U[1, :]) = ", ps.closed_loop_dynamics(X[1, :], U[1, :]))
+    #
+    # print("ps.closed_loop_dynamics(X[0, :], [0, 10.0]) = ", ps.closed_loop_dynamics(X[0, :], jnp.array([0.0, 10.0])))
+    # print("x1 = x0 + ps.dt * ps.closed_loop_dynamics(X[0, :], [0, 10.0]) = ",
+    #       X[0, :] + ps.dt * ps.closed_loop_dynamics(X[0, :], jnp.array([0.0, 2.0])))
+    # print("ps.closed_loop_dynamics(X[1, :], [0, 10.0]) = ", ps.closed_loop_dynamics(X[1, :], jnp.array([0.0, 10.0])))
+    #
+    # print(ps.goal_point(ps.theta))
+    #
+    # ps.control_affine_dynamics(x0)
+    # print(ps.control_affine_dynamics(x0))
 
     # Plot Results
     X = X.T
@@ -166,6 +133,6 @@ if __name__ == '__main__':
         th=th,
         f_trajectory=U,
         hide_axes=False,
-        filename="animate2.mp4",
+        filename="animate3.mp4",
         show_obstacle=True, show_goal=True,
     )
