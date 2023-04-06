@@ -1,7 +1,8 @@
 """
-crafted1.py
+crafted2.py
 Description:
-    In this file, I will create my own custom pushing trajectory to use in a desired path for our pusher to follow.
+    In this file, I will create my own custom pushing trajectory
+    to use in a desired path for our pusher to follow.
 """
 
 import jax
@@ -15,7 +16,9 @@ from datetime import datetime
 
 import sys
 sys.path.append('../../src/python/')
-from pusher_slider_sticking_force_input import PusherSliderStickingForceInputSystem
+from pusher_slider_sticking_velocity_input import (
+    PusherSliderStickingVelocityInputSystem,
+)
 
 if __name__ == '__main__':
     # Constants
@@ -32,22 +35,20 @@ if __name__ == '__main__':
         "obstacle_center_y": 0.0,
         "obstacle_radius": 0.2,
     }
-    ps = PusherSliderStickingForceInputSystem(
-        nominal_scenario,
-        dt=data['dt'],
-    )
+    ps = PusherSliderStickingVelocityInputSystem()
     data['n_u'] = ps.n_controls
 
     # Simulate using a dumb push
-    u0 = jnp.array([data['u0'], 0.0])
+    u0 = jnp.array([0.0, data['u0']])
 
     x = x0
     x_k = x0
 
     u = u0
+    dt = data['dt']
     for k in range(data['horizon']):
         # Update state
-        x_kp1 = x_k + ps.dt * ps.closed_loop_dynamics(x_k, u0)
+        x_kp1 = x_k + dt * ps.f1(x_k, u0)
 
         # Update x and u histories
         x = jnp.vstack((x, x_kp1))
@@ -62,7 +63,7 @@ if __name__ == '__main__':
     U = U.reshape((1, U.shape[0], U.shape[1]))
     th = ps.theta
     th = th.reshape((1, th.shape[0]))
-    ps.save_animated_trajectory(
+    ps.convert_plan_to_video(
         x_trajectory=X,
         th=th,
         f_trajectory=U,

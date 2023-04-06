@@ -263,8 +263,11 @@ class PusherSliderStickingForceInputSystem(object):
         g = jnp.zeros((self.n_dims, self.n_controls))
 
         f_max, tau_max = self.limit_surface_bounds()
-        a = (1 / (f_max ** 2))
-        b = (1 / (tau_max ** 2))
+
+        # a = (1 / (f_max ** 2))
+        # b = (1 / (tau_max ** 2))
+        a = 1.0537 # Copied from paper
+        b = 1.5087 # Copied from paper
 
         # States
         s_x = x.at[PusherSliderStickingForceInputSystem.S_X].get()
@@ -309,8 +312,10 @@ class PusherSliderStickingForceInputSystem(object):
         # Constants
 
         f_max, tau_max = self.limit_surface_bounds()
-        a = (1 / (f_max ** 2))
-        b = (1 / (tau_max ** 2))
+        # a = (1 / (f_max ** 2))
+        # b = (1 / (tau_max ** 2))
+        a = 1.0537  # Copied from paper
+        b = 1.5087  # Copied from paper
 
         # States
         s_x = x.at[PusherSliderStickingForceInputSystem.S_X].get()

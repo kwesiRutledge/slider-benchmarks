@@ -215,7 +215,7 @@ class PusherSliderSystem(object):
     Usage:
         ps.set_input(u)
     """
-    def set_input(self,u):
+    def set_input(self, u):
         self.v_n = u.at[0,0]
         self.v_t = u.at[1,0]
 
@@ -233,7 +233,7 @@ class PusherSliderSystem(object):
         x = ps.get_state()
     """
     def get_state(self):
-        return jnp.array([[self.s_x],[self.s_y],[self.s_theta],[self.p_y]])
+        return jnp.array([[self.s_x], [self.s_y], [self.s_theta], [self.p_y]])
 
     """
     get_input
@@ -273,7 +273,7 @@ class PusherSliderSystem(object):
         Continuous dynamics of the sticking mode of contact between pusher and slider.
     """
     # @partial(jit, static_argnums=(0,))
-    def f1(self,x,u):
+    def f1(self, x, u):
         # Constants
         self.set_state(x)
         self.set_input(u)
