@@ -1,7 +1,7 @@
 """
-trajax_study2.py
+trajax_study5.py
 Description:
-    In this file, I will use trajax to optimize the pusher-slider system's trajectory.
+    In this file, I will use trajax's RANDOM SHOOTING METHOD to optimize the pusher-slider system's trajectory.
 """
 
 import jax
@@ -23,10 +23,9 @@ if __name__ == '__main__':
     # Constants
 
     data = {
-        'horizon': 20, 'max_iter': 1000, 'num_samples': 5000,
-        'elite_porion': 0.01,
-        'dt': 0.05, 'u0': 0.5, 'J_u_prefactor': 1.0, #0.0005,
-        'u_max': 1.0, 'x0': [-0.5, -0.5, jnp.pi/4],
+        'horizon': 300, 'max_iter': 5000, 'num_samples': 500,
+        'dt': 0.05, 'u0': 3.0, 'J_u_prefactor': 0.0, #0.0005,
+        'u_max': 20.0, 'x0': [-0.5, -0.5, jnp.pi/4],
     }
     x0 = jnp.array(data['x0'])
 
@@ -62,11 +61,11 @@ if __name__ == '__main__':
         x_star = ps.goal_point(theta)
 
         # Compute Distance to Target
-        J_x = jnp.linalg.norm(state[:2] - x_star[:2])
+        J_x = jnp.linalg.norm(state[:2] - x_star[:2]) #+ jnp.linalg.norm(state[2] - x_star[2])
 
         # Compute Input Cost
         #J_u = (0.5 - (0.45*jnp.exp(time_step)/(jnp.exp(time_step) + jnp.exp(data['horizon']-time_step))))*jnp.linalg.norm(action)
-        J_u = data['J_u_prefactor'] * jnp.linalg.norm(action[1])
+        J_u = data['J_u_prefactor'] * jnp.linalg.norm(action)
         # J_u = jnp.array(0.0)
 
         # TODO: Penalize actions outside of motion cone!
@@ -105,22 +104,23 @@ if __name__ == '__main__':
 
     # Run ilqr trajopt
     U0 = jnp.zeros((data['horizon'], data['n_u']))
-    U0 = U0.at[:, 0].set(data['u0'])
+    U0 = U0.at[:, 1].set(data['u0'])
 
     hyperparams = optimizers.default_cem_hyperparams()
     hyperparams['max_iter'] = data['max_iter']
     hyperparams['num_samples'] = data['num_samples']
 
+    print("Initial max_iter", hyperparams['max_iter'])
+
     trajectory_optimization_start = time.time()
-    X, U, opt_obj, = optimizers.cem(
+    X, U, opt_obj, = optimizers.random_shooting(
         ps_cost, ps_dynamics,
         x0,
         U0,
-        jnp.array([0.0, -ps.ps_cof * data['u_max']]),
-        jnp.array([data['u_max'], ps.ps_cof * data['u_max']]),
+        jnp.array([0.0, -data['u_max']]),
+        jnp.array([data['u_max'], data['u_max']]),
         max_iter=hyperparams['max_iter'],
         num_samples=hyperparams['num_samples'],
-        elite_portion=hyperparams['elite_portion'],
     )
     trajectory_optimization_end = time.time()
     data['trajopt_time'] = trajectory_optimization_end - trajectory_optimization_start
@@ -137,7 +137,7 @@ if __name__ == '__main__':
     # Save results
     now = datetime.now()
     d4 = now.strftime("%b-%d-%Y-%H:%M:%S")
-    with open('data/study4_data_' + d4 + '.yml', 'w') as outfile:
+    with open('data/study5_data_' + d4 + '.yml', 'w') as outfile:
         yaml.dump(data, outfile, default_flow_style=False)
 
     # print("iteration = ", iteration)
@@ -171,6 +171,6 @@ if __name__ == '__main__':
         th=th,
         f_trajectory=U,
         hide_axes=False,
-        filename="animate4.mp4",
+        filename="animate5.mp4",
         show_obstacle=True, show_goal=True,
     )
