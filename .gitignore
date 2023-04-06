@@ -165,6 +165,8 @@ experiments/experiment9_trajax1/data/*.yml
 experiments/experiment10_homebrewed_trajopt1/data/*.png
 experiments/experiment10_homebrewed_trajopt1/data/*.yml
 experiments/experiment11_handcrafted_path/*.mp4
+experiments/experiment13_trajax2/*.mp4
+experiments/experiment13_trajax2/data/*.yml
 
 
 # PyCharm files
