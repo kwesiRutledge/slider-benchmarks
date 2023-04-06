@@ -160,6 +160,12 @@ experiments/experiment6_julia_animate/*.apng
 experiments/experiment6_julia_animate/*.gif
 experiments/experiment7_differential_flatness1/*.png
 experiments/experiment8_varying_CoM/*.png
+experiments/experiment9_trajax1/*.mp4
+experiments/experiment9_trajax1/data/*.yml
+experiments/experiment10_homebrewed_trajopt1/data/*.png
+experiments/experiment10_homebrewed_trajopt1/data/*.yml
+experiments/experiment11_handcrafted_path/*.mp4
+
 
 # PyCharm files
 .idea/*
