@@ -198,6 +198,30 @@ class PusherSliderStickingForceInputSystem(object):
         tau_max = self.st_cof * self.s_mass * g * (1 / slider_area) * circular_density_integral
         return f_max, tau_max
 
+    def compute_motion_cone_factors(self):
+        """
+        a, b = self.compute_motion_cone_factors()
+
+        """
+        # Constants
+
+        # Create output
+        f_max, tau_max = self.limit_surface_bounds()
+
+        # a = (1 / (f_max ** 2))
+        # b = (1 / (tau_max ** 2))
+
+        # a = 1.0537  # Copied from paper
+        # b = 1.5087  # Copied from paper
+
+        # a = (1 / jnp.sqrt(f_max ** 2 + self.ps_cof * f_max ** 2))
+        # b = (1 / (tau_max))
+
+        a = (1 / (f_max ** 2 + (self.ps_cof * f_max) ** 2))
+        b = (1 / (tau_max ** 2))
+
+        return a, b
+
     def _f(self, x: jnp.array, s: Scenario = None) -> jnp.array:
         """
         Return the control-independent part of the control-affine dynamics.
@@ -262,12 +286,7 @@ class PusherSliderStickingForceInputSystem(object):
         # Constants
         g = jnp.zeros((self.n_dims, self.n_controls))
 
-        f_max, tau_max = self.limit_surface_bounds()
-
-        # a = (1 / (f_max ** 2))
-        # b = (1 / (tau_max ** 2))
-        a = 1.0537 # Copied from paper
-        b = 1.5087 # Copied from paper
+        a, b = self.compute_motion_cone_factors()
 
         # States
         s_x = x.at[PusherSliderStickingForceInputSystem.S_X].get()
@@ -310,12 +329,7 @@ class PusherSliderStickingForceInputSystem(object):
             s = self.nominal_scenario
 
         # Constants
-
-        f_max, tau_max = self.limit_surface_bounds()
-        # a = (1 / (f_max ** 2))
-        # b = (1 / (tau_max ** 2))
-        a = 1.0537  # Copied from paper
-        b = 1.5087  # Copied from paper
+        a, b = self.compute_motion_cone_factors()
 
         # States
         s_x = x.at[PusherSliderStickingForceInputSystem.S_X].get()
@@ -642,9 +656,11 @@ class PusherSliderStickingForceInputSystem(object):
             # Normalize and plot vector of force
             current_force_clone = current_force.copy()
             norm_vec = current_force_clone / jnp.linalg.norm(current_force_clone)
-            scaled_vec = (s_length / 2.0) * norm_vec
+            scaled_vec = (
+                jnp.linalg.norm(current_force_clone) / jnp.sqrt(self.max_force**2 + (self.ps_cof * self.max_force)**2)
+            ) * (s_length) *  norm_vec
 
-            th_in_contact_point_frame = s_th - jnp.pi / 2
+            th_in_contact_point_frame = s_th
             rotation_matrix = jnp.array([
                 [jnp.cos(th_in_contact_point_frame), -jnp.cos(th_in_contact_point_frame)],
                 [jnp.cos(th_in_contact_point_frame), jnp.cos(th_in_contact_point_frame)]
@@ -742,7 +758,7 @@ class PusherSliderStickingForceInputSystem(object):
             norm_vec = current_force_clone / jnp.linalg.norm(current_force_clone)
             scaled_vec = (s_length / 2.0) * norm_vec
 
-            th_in_contact_point_frame = s_th - jnp.pi / 2
+            th_in_contact_point_frame = s_th #- jnp.pi / 2
             rotation_matrix = jnp.array([
                 [jnp.cos(th_in_contact_point_frame), -jnp.sin(th_in_contact_point_frame)],
                 [jnp.cos(th_in_contact_point_frame), jnp.cos(th_in_contact_point_frame)]
