@@ -1,0 +1,16 @@
+# Standard
+numpy
+matplotlib
+seaborn
+
+# Code quality
+# mypy
+pytest
+# flake8
+# brunette
+
+# Optimization
+jax[cpu]
+
+# Geometry
+polytope
