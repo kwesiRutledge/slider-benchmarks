@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     data = {
         'horizon': 20, 'max_iter': 5000, 'num_samples': 500,
-        'dt': 0.2, 'u0': 0.5, 'J_u_prefactor': 0.0, #0.0005,
+        'dt': 0.2, 'u0': 3.0, 'J_u_prefactor': 0.0, #0.0005,
         'u_max': 20.0, 'x0': [-0.5, -0.5, jnp.pi/4],
     }
     x0 = jnp.array(data['x0'])
@@ -67,6 +67,6 @@ if __name__ == '__main__':
         th=th,
         f_trajectory=U,
         hide_axes=False,
-        filename="crafted-push1.mp4",
+        filename="crafted-push1.gif",
         show_obstacle=True, show_goal=True,
     )
