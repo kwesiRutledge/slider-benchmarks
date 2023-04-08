@@ -4,6 +4,10 @@ A number of manipulation algorithms for the Pusher-Slider benchmark system
 [\[2\]](https://journals.sagepub.com/doi/10.1177/0278364919872532) 
 from robot manipulation. 
 
+| ![](images/crafted-push1.gif) |
+|:-----------------------------:|
+| Python Simulation             |
+
 The system is implemented in Python and Julia.
 
 ## Installation

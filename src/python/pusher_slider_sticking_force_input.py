@@ -37,8 +37,8 @@ class PusherSliderStickingForceInputSystem(object):
     S_THETA = 2
 
     # Control indices
-    F_X = 0
-    F_Y = 1
+    F_X = 0  # Force normal to the block (should be nonnegative)
+    F_Y = 1  # Force tangential to the block (should be bounded by friction cone)
 
     # Parameter indices
     C_X = 0
@@ -70,7 +70,7 @@ class PusherSliderStickingForceInputSystem(object):
 
         self.st_cof = 0.35
 
-        self.theta = jnp.array([0.0, s_width/2.0])
+        self.theta = jnp.array([s_width/2.0, 0.0])
 
         self.dt = dt
         self.max_force = max_force
@@ -608,7 +608,7 @@ class PusherSliderStickingForceInputSystem(object):
 
         # Plot Slider's Center of Mass
         if show_CoM:
-            th_in_contact_point_frame = s_th - jnp.pi / 2
+            th_in_contact_point_frame = s_th
             rotation_matrix = jnp.array([
                 [jnp.cos(th_in_contact_point_frame), -jnp.sin(th_in_contact_point_frame)],
                 [jnp.sin(th_in_contact_point_frame), jnp.cos(th_in_contact_point_frame)]
@@ -717,7 +717,7 @@ class PusherSliderStickingForceInputSystem(object):
         # Update Center of Mass
         cp = self.contact_point(x)
         if show_CoM:
-            th_in_contact_point_frame = s_th - jnp.pi / 2
+            th_in_contact_point_frame = s_th
             rotation_matrix = jnp.array([
                 [jnp.cos(th_in_contact_point_frame), -jnp.sin(th_in_contact_point_frame)],
                 [jnp.sin(th_in_contact_point_frame), jnp.cos(th_in_contact_point_frame)]
@@ -782,14 +782,21 @@ class PusherSliderStickingForceInputSystem(object):
             show_goal: bool = True,
     ):
         """
-        save_animated_trajectory
+        ps.save_animated_trajectory( x_trajectory=x_trajectory,
+            th=th,
+            f_trajectory=f_trajectory,
+            hide_axes=hide_axes,
+            filename="crafted-push1.gif",
+            show_obstacle=True, show_goal=True,
+        )
+
         Description:
             Animates a trajectory of the pusher-slider system.
         Inputs:
             x_trajectory: A bs x N_traj x 3 tensor containing the trajectory of the system.
             th: A bs x 2 tensor containing the parameters of the system.
             f_trajectory: A bs x (N_traj-1) x 2 tensor containing the trajectory of the forces applied to the system.
-            filename: The name of the file to save the animation to.
+            filename: The name of the file to save the animation to. Can be a .gif or .mp4 file.
         """
         # Input Processing
         assert len(
