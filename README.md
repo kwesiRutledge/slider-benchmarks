@@ -16,3 +16,6 @@ I am still considering whether to make this an official
 Python or Julia package (I've never created either of those before!)
 if you are interested in making them an official package, then 
 create an issue!
+
+A partial list of Python requirements is listed in `extras/python-requirements.txt`
+and thus can be installed using pip's requirements flag.

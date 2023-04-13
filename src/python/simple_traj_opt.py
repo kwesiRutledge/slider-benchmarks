@@ -20,13 +20,13 @@ Description:
 Usage:
 
 Variables:
-    ps      - An instance of a PusherSliderSystem object.
+    ps      - An instance of a PusherSliderStickingVelocityInputSystem object.
               The current state of this system is the initial condition of the trajectory optimizer.
     x_star  -
 """
 
 
-def simple_endpoint_traj_opt(ps:PusherSliderSystem, x_star:jnp.array, N:int=100,N_traj_opt:int=10000,dt:float=0.1,u_step_size=0.01)->tuple[jnp.array,float,float]:
+def simple_endpoint_traj_opt(ps:PusherSliderSystem, x_star:jnp.array, N:int=100, N_traj_opt:int=10000, dt:float=0.1, u_step_size=0.01) -> tuple[jnp.array,float,float]:
     # Constants
     x0 = ps.x()
 
@@ -72,11 +72,12 @@ def simple_endpoint_traj_opt(ps:PusherSliderSystem, x_star:jnp.array, N:int=100,
 
     return u_k, opt_end_time - opt_start_time, final_loss
 
-"""
-ic_traj_opt
-Description:
-"""
 def ic_traj_opt(ps:PusherSliderSystem, x0:jnp.array, x_star:jnp.array, N:int=100,N_traj_opt:int=10000,dt:float=0.1,u_step_size=0.01)->tuple[jnp.array,float,float]:
+    """
+    ic_traj_opt
+    Description:
+        Computes a trajectory that minimizes the distance of the final point to a point x_star.
+    """
     # Constants
     ps.set_state(x0)
 

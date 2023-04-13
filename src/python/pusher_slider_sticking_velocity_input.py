@@ -1,460 +1,242 @@
 """
-pusher_slider_sticking_force_input.py
+pusher_slider_sticking_velocity_input.py
 Description:
-    This file contains functions relevant to performing jax operations on.
+    Creates a class that represents a Pusher-Slider System
+    where we assume that the velocity of the pusher is the input.
 """
 
-from typing import Callable, Tuple, Optional, List, Dict
-import jax
+from jax import jit
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+from functools import partial
 import matplotlib.animation as manimation
 
-import numpy
-
-import time
-import polytope as pc
-
-# Define Scenario
-Scenario = Dict[str, float]
-
-class PusherSliderStickingForceInputSystem(object):
+class PusherSliderStickingVelocityInputSystem(object):
     """
-    PusherSliderStickingForceInputSystem
+    ps = PusherSliderStickingVelocityInputSystem()
     Description:
-        This class is meant to represent the PusherSlider system with sticking contact
-        and force input.
+        Creates a class that represents a Pusher-Slider System
+        where we assume that the velocity of the pusher is the input
+        and the slider is sticking to the pusher.
     """
 
-    # Number of states, controls and paramters
-    N_DIMS = 3
-    N_CONTROLS = 2
-    N_PARAMETERS = 2
-
-    # State Indices
+    # Constants
     S_X = 0
     S_Y = 1
     S_THETA = 2
 
-    # Control indices
-    F_X = 0  # Force normal to the block (should be nonnegative)
-    F_Y = 1  # Force tangential to the block (should be bounded by friction cone)
+    # Input Names
+    V_N = 0
+    V_T = 1
 
-    # Parameter indices
-    C_X = 0
-    C_Y = 1
+    N_DIMS = 3
+    N_CONTROLS = 2
 
-    def __init__(
-            self,
-            nominal_scenario: Scenario,
-            s_mass=1.05,
-            s_width=0.09,
-            ps_cof: float = 0.30,
-            dt: float = 0.01,
-            max_force: float = 10.0,
-    ):
+    def __init__(self):
         """
         __init__
         Description:
-            Construction of the PusherSlider system with sticking input.
-        """
-
-        self.s_width = s_width
-        self.s_length = s_width
-        self.s_mass = s_mass
-
-        self.ps_cof = ps_cof  # Pusher-to-Slider Coefficient of Friction
-        self.st_cof = 0.35  # Slider-to-Table Coefficient of Friction
-
-        self.p_radius = 0.01  # Radius of the Pusher representation (circle)
-
-        self.st_cof = 0.35
-
-        self.theta = jnp.array([s_width/2.0, 0.0])
-
-        self.dt = dt
-        self.max_force = max_force
-
-        # Save scenario
-        assert self.validate_scenario(nominal_scenario)
-        self.nominal_scenario = nominal_scenario
-
-    def validate_scenario(self, s: Scenario) -> bool:
-        """
-        tf = self.validate_scenario(s)
-
-        Description:
-            Check if a given set of parameters is valid
-
-        args:
-            params: a dictionary giving the parameter values for the system.
-        returns:
-            True if parameters are valid, False otherwise
-        """
-        valid = True
-
-        valid = valid and ("obstacle_center_x" in s)
-        valid = valid and ("obstacle_center_y" in s)
-        valid = valid and ("obstacle_radius" in s)
-
-        return valid
-
-    @property
-    def U(self) -> pc.Polytope:
-        """
-        P_U = self.U
-
-        Description:
-            Return the polytope representing the control constraints for the given system.
-        """
-        # Define the matrices which define the polytope
-        H = numpy.array([
-            [-self.ps_cof, 1.0],
-            [-self.ps_cof, -1.0],
-            [1.0, 0.0],
-            [0.0, 1.0],
-            [-1.0, 0.0],
-        ])
-
-        h = numpy.zeros((5, 1))
-        h[2, 0] = self.max_force
-        h[3, 0] = self.max_force
-
-        return pc.Polytope(H, h)
-
-    def friction_cone_extremes(self) -> (jnp.array, jnp.array):
-        """
-        [f_l, f_u] = self.friction_cone_extremes()
-
-        Description:
-            This function returns two unit vectors defining the boundary of the friction cone.
-            The friction cone vectors are written in the frame of reference at the contact point
-            with:
-            - positive x being along the edge of the slider and
-            - positive y being perpendicular and into the slider.
-        Args:
-
-        Outputs:
-            f_u: A vector in the direction of the "upper" edge of the friction cone
-            f_l: A vector in the direction of the "lower" edge of the friction cone
-        """
-
-        # Constants
-        mu = self.ps_cof
-
-        # Create output
-        return jnp.array([mu, 1.0]), jnp.array([-mu, 1.0])
-
-    @property
-    def n_dims(self) -> int:
-        return PusherSliderStickingForceInputSystem.N_DIMS
-
-    @property
-    def angle_dims(self) -> List[int]:
-        return [PusherSliderStickingForceInputSystem.S_THETA]
-
-    @property
-    def parameter_angle_dims(self) -> List[int]:
-        return []
-
-    @property
-    def n_controls(self) -> int:
-        return PusherSliderStickingForceInputSystem.N_CONTROLS
-
-    @property
-    def n_params(self) -> int:
-        return PusherSliderStickingForceInputSystem.N_PARAMETERS
-
-    def goal_state(self, theta: jnp.array, s: Scenario = None) -> jnp.array:
-        """
-        goal_point
-        Description:
-            In this case, we force the goal state to be the same point [0.5,0.5,0]
-            for any theta input.
+            For the sake of cleanliness, I will not include the option to
+            initialize parameters with input values. For now, do that outside
+            of this initializer.
         """
         # Defaults
-        if theta is None:
-            theta = jnp.zeros(1, self.n_params)
+        self.s_width = 0.09  # m 
+        self.s_length = 0.09 # m
+        self.s_mass = 1.05   # kg
+        self.ps_cof = 0.3    # Pusher-to-Slider Coefficient of Friction
+        self.st_cof = 0.35   # Slider-to-Table Coefficient of Friction
+        
+        self.p_radius = 0.01 # Radius of the Pusher representation (circle)
 
-        if s is None:
-            s = self.nominal_scenario
+        # Define initial state
+        self.s_x = 0.1
+        self.s_y = 0.1
+        self.s_theta = jnp.pi/6.0
+
+        self.p_x = self.s_width/2.0
+        self.p_y = 0.0
+
+        # Define Initial Input
+        self.v_n = 0.01 # Velocity normal to the slider
+        self.v_t = 0.03 # Velocity tangential to the slider
+
+    @property
+    def n_dims(self):
+        return PusherSliderStickingVelocityInputSystem.N_DIMS
+
+    @property
+    def n_controls(self):
+        return PusherSliderStickingVelocityInputSystem.N_CONTROLS
+
+    def plot(self, fig_in: plt.figure)->None:
+        """
+        plot
+        Description:
+            Plots the pusher-slider system onto a new figure.
+        """
 
         # Constants
+        lw = 2.0
+        slider_color = 'blue'
+        pusher_color = 'magenta'
 
-        # Algorithm
-        return jnp.array([0.5, 0.5, 0.0])
+        # Create Slider
+        # =============
 
-    def limit_surface_bounds(self):
+        x_lb = -self.s_width/2
+        x_ub =  self.s_width/2
+        y_lb = -self.s_length/2
+        y_ub =  self.s_length/2
+
+        # Create Corners
+
+        corners = jnp.array(
+            [[x_lb, x_lb, x_ub, x_ub, x_lb],
+             [y_lb, y_ub, y_ub, y_lb, y_lb]]
+        )
+
+        rot = jnp.array(
+            [[jnp.cos(self.s_theta), -jnp.sin(self.s_theta)],
+             [jnp.sin(self.s_theta),jnp.cos(self.s_theta)]]
+        )
+
+        rotated_corners = rot.dot(corners)
+
+        slider_pos = jnp.array([[self.s_x],[self.s_y]])
+        rot_n_transl_corners = rotated_corners + \
+            jnp.kron(
+                jnp.ones( (1,corners.shape[1]) ) , slider_pos
+            )
+
+        # Plotting Slider 
+        ax   = fig_in.add_subplot(111)
+        plt.plot(
+            rot_n_transl_corners[0,:],rot_n_transl_corners[1,:],
+            linewidth=lw, color=slider_color
+        )
+
+        # Creating Pusher
+        # ===============
+
+        # Create circle
+        circle_center = jnp.array([[self.s_x],[self.s_y]]) + \
+            rot.dot( jnp.array([[-self.p_x],[self.p_y]]) + jnp.array([[-self.p_radius],[0.0]]) )
+
+        ax.add_patch(
+            plt.Circle(
+                (circle_center[0], circle_center[1]),
+                self.p_radius, color=pusher_color, alpha=0.2,
+            )
+        )
+        
+
+    """
+    get_motion_cone_vectors
+    Description:
+        Gets the two scalars, gamma_t and gamma_b, which define the motino
+        cone vectors.
+    Usage:
+        gamma_t, gamma_b = ps.get_motion_cone_vectors()
+    """ 
+    def get_motion_cone_vectors(self)->(float,float):
         # Constants
-        g = 9.8
-
-        # Create output
+        g = 10
         f_max = self.st_cof * self.s_mass * g
+        m_max = self.st_cof * self.s_mass * g * (self.s_width/2.0)  # The last term is meant to come from
+                                                                    # a sort of mass distribution/moment calculation.
+        c = f_max / m_max
+        mu = self.ps_cof # TODO: Which coefficient of friction is this supposed to be?
 
-        slider_area = self.s_width * self.s_length
-        # circular_density_integral = 2*pi*((ps.s_length/2)^2)*(1/2)
-        circular_density_integral = (1 / 12.0) * ((self.s_length / 2) ** 2 + (self.s_width / 2) ** 2) * jnp.exp(1)
+        gamma_t = ( mu*jnp.power(c,2) - self.p_x * self.p_y + mu * jnp.power(self.p_x,2) ) / \
+            ( jnp.power(c,2) + jnp.power(self.p_y,2) - mu * self.p_x*self.p_y )
 
-        tau_max = self.st_cof * self.s_mass * g * (1 / slider_area) * circular_density_integral
-        return f_max, tau_max
+        gamma_b = ( - mu*jnp.power(c,2) - self.p_x * self.p_y - mu * jnp.power(self.p_x,2) )/ \
+            ( jnp.power(c,2) + jnp.power(self.p_y,2) + mu * self.p_x*self.p_y )
 
-    def compute_motion_cone_factors(self):
+        return gamma_t, gamma_b
+
+
+    def C(self, x: jnp.array) -> jnp.array:
         """
-        a, b = self.compute_motion_cone_factors()
-
+        rot = ps.C(x)
+        Description:
+            Creates the rotation matrix used in the pusher slider system's dynamics.
+            Note: This is NOT the C matrix from the common linear system's y = Cx + v.
         """
         # Constants
-
-        # Create output
-        f_max, tau_max = self.limit_surface_bounds()
-
-        # a = (1 / (f_max ** 2))
-        # b = (1 / (tau_max ** 2))
-
-        # a = 1.0537  # Copied from paper
-        # b = 1.5087  # Copied from paper
-
-        # a = (1 / jnp.sqrt(f_max ** 2 + self.ps_cof * f_max ** 2))
-        # b = (1 / (tau_max))
-
-        a = (1 / (f_max ** 2 + (self.ps_cof * f_max) ** 2))
-        b = (1 / (tau_max ** 2))
-
-        return a, b
-
-    def _f(self, x: jnp.array, s: Scenario = None) -> jnp.array:
-        """
-        Return the control-independent part of the control-affine dynamics.
-        args:
-            x: self.n_dims array of state
-            params: a dictionary giving the parameter values for the system. If None,
-                    default to the nominal parameters used at initialization
-        returns:
-            f: self.n_dims jax array
-        """
-        # Input Processing
-        assert x.shape[0] == self.n_dims
-        assert x.shape == (self.n_dims,)
-
-        if s is None:
-            s = self.nominal_scenario
-
-        # Constants
-        f = jnp.zeros((self.n_dims,))
-
-        return f
-
-    def _F(self, x: jnp.array, s: Scenario = None) -> jnp.array:
-        """
-        Return the control-independent part of the control-affine dynamics.
-        args:
-            x: self.n_dims array of state
-            params: a dictionary giving the parameter values for the system. If None,
-                    default to the nominal parameters used at initialization
-        returns:
-            F: self.n_dims x self.n_params array
-        """
-        # Input Processing
-        assert x.shape[0] == self.n_dims
-        assert x.shape == (self.n_dims,)
-
-        if s is None:
-            s = self.nominal_scenario
-
-        # Constants
-        F = jnp.zeros((self.n_dims, self.n_params))
-
-        return F
-
-    def _g(self, x: jnp.array, s: Scenario = None) -> jnp.array:
-        """
-        Return the control-dependent part of the control-affine dynamics.
-        args:
-            x: self.n_dims array of state
-            params: a dictionary giving the parameter values for the system. If None,
-                    default to the nominal parameters used at initialization
-        returns:
-            g: self.n_dims x self.n_controls array
-        """
-        # Input Processing
-        assert x.shape[0] == self.n_dims
-        assert x.shape == (self.n_dims,)
-
-        if s is None:
-            s = self.nominal_scenario
-
-        # Constants
-        g = jnp.zeros((self.n_dims, self.n_controls))
-
-        a, b = self.compute_motion_cone_factors()
-
-        # States
-        s_x = x.at[PusherSliderStickingForceInputSystem.S_X].get()
-        s_y = x.at[PusherSliderStickingForceInputSystem.S_Y].get()
-        s_theta = x.at[PusherSliderStickingForceInputSystem.S_THETA].get()
+        theta = x.at[2].get()
 
         # Algorithm
-        g = g.at[PusherSliderStickingForceInputSystem.S_X, PusherSliderStickingForceInputSystem.F_X].set(
-            jnp.cos(s_theta) * a,
-        )
-        g = g.at[PusherSliderStickingForceInputSystem.S_X, PusherSliderStickingForceInputSystem.F_Y].set(
-            -jnp.sin(s_theta) * a,
-        )
+        return jnp.array([
+            [jnp.cos(theta), jnp.sin(theta)],
+            [-jnp.sin(theta), jnp.cos(theta)]
+        ])
 
-        g = g.at[PusherSliderStickingForceInputSystem.S_Y, PusherSliderStickingForceInputSystem.F_X].set(
-            jnp.sin(s_theta) * a,
-        )
-        g = g.at[PusherSliderStickingForceInputSystem.S_Y, PusherSliderStickingForceInputSystem.F_Y].set(
-            jnp.cos(s_theta) * a,
-        )
-
-        return g
-
-    def _G(self, x: jnp.array, s: Scenario = None) -> jnp.array:
+    def Q(self, x: jnp.array) -> jnp.array:
         """
-        G = self._G(x, params)
-        Return the control-dependent and parameter-dependent part of the control-affine dynamics.
-        args:
-            x: bs x self.n_dims tensor of state
-            params: a dictionary giving the parameter values for the system. If None,
-                    default to the nominal parameters used at initialization
-        returns:
-            G: bs x self.n_dims x self.n_controls x self.n_params tensor
+        q = ps.Q(xx)
+        Description:
+            Creates the Q matrix defined in the equations of motion for the pusher slider.
         """
-        # Input Processing
-        assert x.shape[0] == self.n_dims
-        assert x.shape == (self.n_dims,)
-
-        if s is None:
-            s = self.nominal_scenario
 
         # Constants
-        a, b = self.compute_motion_cone_factors()
+        g = 10.0
+        f_max = self.st_cof * self.s_mass * g
+        m_max = self.st_cof * self.s_mass * g * (2.0*self.s_width/3.0)  # The last term is meant to come from
+                                                                    # a sort of mass distribution/moment calculation.
+        c = m_max / f_max
 
-        # States
-        s_x = x.at[PusherSliderStickingForceInputSystem.S_X].get()
-        s_y = x.at[PusherSliderStickingForceInputSystem.S_Y].get()
-        s_theta = x.at[PusherSliderStickingForceInputSystem.S_THETA].get()
-
-        # Create output
-        G = jnp.zeros((self.n_dims, self.n_controls, self.n_params))
-
-        G = G.at[PusherSliderStickingForceInputSystem.S_THETA, PusherSliderStickingForceInputSystem.F_X,
-            PusherSliderStickingForceInputSystem.C_Y].set(-b)
-        #print("G = ", G)
-
-        G = G.at[PusherSliderStickingForceInputSystem.S_THETA, PusherSliderStickingForceInputSystem.F_Y,
-            PusherSliderStickingForceInputSystem.C_X].set(b)
-
-        # print("G = ", G)
-
-        return G
-
-    def input_gain_matrix(self, x: jnp.array, theta: jnp.array = None, s: Scenario = None) -> jnp.array:
-        """
-        Return the factor that multiplies the control value in the dynamics.
-        args:
-            x: self.n_Dims tensor of state
-            theta: self.n_params tensor of state
-            params: a dictionary giving the parameter values for the system.
-                    If None, default to the nominal parameters used at initialization.
-        returns
-            g_like: self.n_dims x self.n_controls tensor defining how input vector impacts the state
-                    in each batch.
-        """
-        # Input Processing
-        assert x.shape == (self.n_dims,)
-        assert theta.shape == (self.n_params,)
-
-        if s is None:
-            s = self.nominal_scenario
-
-        if theta is None:
-            theta = self.theta
-
-        # Constants
+        # State
+        p_x = self.p_x
+        p_y = self.p_y
 
         # Algorithm
-        g_like = self._g(x)
-        G = self._G(x)
-        for param_index in range(self.n_params):
-            theta_i = theta.at[param_index].get()
-            G_i = jnp.zeros((self.n_dims, self.n_controls))
-            G_i = G_i.at[:, :].set(G.at[:, :, param_index].get())
-            # Update g
-            g_like = g_like + theta_i * G_i
+        return (1.0/(jnp.power(c, 2) + jnp.power(p_x, 2) + jnp.power(p_y,2))) * \
+            jnp.array([
+                [jnp.power(c, 2)+jnp.power(p_x, 2), p_x*p_y],
+                [p_x*p_y, jnp.power(c, 2)+jnp.power(p_y, 2)]
+            ])
 
-        return g_like
-
-    def control_affine_dynamics(
-            self, x: jnp.array, s: Scenario = None
-    ) -> Tuple[jnp.array, jnp.array]:
+    # @partial(jit, static_argnums=(0,))
+    def f1(self, x: jnp.array, u: jnp.array) -> jnp.array:
         """
-        f, g = self.control_affine_dynamics(x, theta, params)
-
-        description:
-            Return a tuple (f + F \theta, g + \sum_i  G_i \theta) representing the system dynamics in control-affine form:
-                dx/dt = f(x) + F(x) \theta + { g(x) + \sum_i G(x) \theta_i } u
-        args:
-            x: self.n_dims tensor of state
-            theta: self.n_params tensor of parameter data
-            params: a dictionary giving the parameter values for the system. If None,
-                    default to the nominal parameters used at initialization
-        returns:
-            f: self.n_dims tensor representing the control-independent dynamics
-            g: self.n_dims x self.n_controls tensor representing the control-
-               dependent dynamics
+        dxdt = ps.f1(x,u)
+        Description:
+            Continuous dynamics of the sticking mode of contact between pusher and slider.
         """
+
         # Input Processing
-        theta = self.theta
-
         assert x.shape == (self.n_dims,)
-        assert self.theta.shape == (self.n_params,)
+        assert u.shape == (self.n_controls,)
 
-        if s is None:
-            s = self.nominal_scenario
+        # Constants
+        C0 = self.C(x)
+        Q0 = self.Q(x)
 
-        # # If no params required, use nominal params
-        # if params is None:
-        #     params = self.nominal_scenario
+        g = 10.0
+        f_max = self.st_cof * self.s_mass * g
+        m_max = self.st_cof * self.s_mass * g * (self.s_width/2.0)  # The last term is meant to come from
+                                                                    # a sort of mass distribution/moment calculation.
+        c = m_max / f_max
+        p_x = self.p_x
+        p_y = self.p_y
 
-        # print("self._f(x)", self._f(x))
-        # print("self._F(x) @ theta", self._F(x) @ theta)
-        # print("self.input_gain_matrix(x, theta)", self.input_gain_matrix(x, theta))
+        # Algorithm
+        b1 = jnp.array([
+            [- p_y / (jnp.power(c, 2)+jnp.power(p_x, 2)+jnp.power(p_y, 2)), p_x / (jnp.power(c, 2)+jnp.power(p_x, 2)+jnp.power(p_y, 2))]
+        ])
 
-        return self._f(x) + self._F(x) @ theta, self.input_gain_matrix(x, theta)
+        # c1 = jnp.array([[0.0, 0.0]])
 
-    def closed_loop_dynamics(
-            self, x: jnp.array, u: jnp.array, s: Optional[Scenario] = None
-    ) -> jnp.array:
-        """
-        Return the state derivatives at state x and control input u
-            dx/dt = f(x) + F(x) \theta + { g(x) + sum_i G(x) \theta_i } u
-        args:
-            x: bs x self.n_dims tensor of state
-            u: bs x self.n_controls tensor of controls
-            theta: bs x self.n_params tensor of parameters
-            scenario: a dictionary giving the scenario parameter values for the system.
-                        If None, default to the nominal parameters used at initialization
-        returns:
-            xdot: bs x self.n_dims tensor of time derivatives of x
-        """
-        # Input Processing
-        theta = self.theta
+        P1 = jnp.eye(2)
 
-        assert x.shape == (self.n_dims,), f"Expected x to be of shape ({self.n_dims},); received shape {x.shape}"
-        assert theta.shape == (self.n_params,), f"Expected theta to be of shape ({self.n_params},); received shape {theta.shape}"
+        #       = [ C0 * Q0 * P1 ]
+        # dxdt  = [      b1      ] * u
 
-        if s is None:
-            s = self.nominal_scenario
-
-        # Get the control-affine dynamics
-        f, g = self.control_affine_dynamics(x)
-
-        # Compute state derivatives using control-affine form
-        xdot = f + g @ u
-
-        return xdot
+        return jnp.vstack(
+            (C0.T.dot(Q0.dot(P1)), b1)
+        ).dot(u)
 
     def contact_point(self, x: jnp.array) -> jnp.array:
         """
@@ -608,7 +390,7 @@ class PusherSliderStickingForceInputSystem(object):
 
         # Plot Slider's Center of Mass
         if show_CoM:
-            th_in_contact_point_frame = s_th
+            th_in_contact_point_frame = s_th - jnp.pi / 2
             rotation_matrix = jnp.array([
                 [jnp.cos(th_in_contact_point_frame), -jnp.sin(th_in_contact_point_frame)],
                 [jnp.sin(th_in_contact_point_frame), jnp.cos(th_in_contact_point_frame)]
@@ -656,9 +438,7 @@ class PusherSliderStickingForceInputSystem(object):
             # Normalize and plot vector of force
             current_force_clone = current_force.copy()
             norm_vec = current_force_clone / jnp.linalg.norm(current_force_clone)
-            scaled_vec = (
-                jnp.linalg.norm(current_force_clone) / jnp.sqrt(self.max_force**2 + (self.ps_cof * self.max_force)**2)
-            ) * (s_length) * norm_vec
+            scaled_vec = (s_length / 2.0) * norm_vec
 
             th_in_contact_point_frame = s_th - jnp.pi / 2
             rotation_matrix = jnp.array([
@@ -717,7 +497,7 @@ class PusherSliderStickingForceInputSystem(object):
         # Update Center of Mass
         cp = self.contact_point(x)
         if show_CoM:
-            th_in_contact_point_frame = s_th
+            th_in_contact_point_frame = s_th - jnp.pi / 2
             rotation_matrix = jnp.array([
                 [jnp.cos(th_in_contact_point_frame), -jnp.sin(th_in_contact_point_frame)],
                 [jnp.sin(th_in_contact_point_frame), jnp.cos(th_in_contact_point_frame)]
@@ -726,7 +506,8 @@ class PusherSliderStickingForceInputSystem(object):
             plot_objects["CoM"].set_offsets((CoM.at[0].get(), CoM.at[1].get()))
 
         # Update Pusher
-        plot_objects["pusher"].center = (cp.at[0].get() - p_radius * jnp.cos(s_th), cp.at[1].get() - p_radius * jnp.sin(s_th))
+        plot_objects["pusher"].center = (
+        cp.at[0].get() - p_radius * jnp.cos(s_th), cp.at[1].get() - p_radius * jnp.sin(s_th))
 
         # Update Friction Cone Vectors
         if show_friction_cone_vectors:
@@ -782,21 +563,14 @@ class PusherSliderStickingForceInputSystem(object):
             show_goal: bool = True,
     ):
         """
-        ps.save_animated_trajectory( x_trajectory=x_trajectory,
-            th=th,
-            f_trajectory=f_trajectory,
-            hide_axes=hide_axes,
-            filename="crafted-push1.gif",
-            show_obstacle=True, show_goal=True,
-        )
-
+        save_animated_trajectory
         Description:
             Animates a trajectory of the pusher-slider system.
         Inputs:
             x_trajectory: A bs x N_traj x 3 tensor containing the trajectory of the system.
             th: A bs x 2 tensor containing the parameters of the system.
             f_trajectory: A bs x (N_traj-1) x 2 tensor containing the trajectory of the forces applied to the system.
-            filename: The name of the file to save the animation to. Can be a .gif or .mp4 file.
+            filename: The name of the file to save the animation to.
         """
         # Input Processing
         assert len(
@@ -1004,76 +778,3 @@ class PusherSliderStickingForceInputSystem(object):
             plot_objects_collection.append(plot_objects_bi)
 
         return plot_objects_collection
-
-    def ic_traj_opt(
-            self,
-            x0: jnp.array,
-            horizon: int = 100, num_traj_opt_iters: int = 10000,
-            u_step_size=0.01,
-            u_clipping=False,
-    ) -> tuple[jnp.array, float, float]:
-        """
-        u_k, opt_end_time - opt_start_time, final_loss = ps.ic_traj_opt(x0, x_star, N=100, N_traj_opt=10000, dt=0.1, u_step_size=0.01)
-
-        Description:
-            Computes a trajectory that minimizes the distance of the final point to a point x_star.
-
-        """
-        # Constants
-        theta = self.theta
-        goal = self.goal_point(theta)
-
-        # Define Loss and N-Step Composition Functions
-        def NStepCompositionFunction(u: jnp.array):
-            """
-            NStepCompositionFunction
-            Description:
-                Computes the N-step composition of the closed loop dynamics.
-
-            """
-            # Reshape According to input dimension of ps
-
-            # Compute Composition
-            x_t = x0
-            for k in range(horizon):
-                u_t = u[k, :].reshape((self.n_controls,))
-                x_tp1 = x_t + self.closed_loop_dynamics(x_t, u_t) * self.dt
-
-                # Set new variable values for next loop
-                x_t = x_tp1
-
-            return x_t
-
-        # Create loss
-        def loss(u: jnp.array):
-            return jnp.linalg.norm(NStepCompositionFunction(u).at[:2].get() - goal.at[:2].get()) #+ jnp.linalg.norm(u.at[:, 1].get())
-
-        # Define Hill Climbing Procedure
-        u_init = jnp.zeros((horizon, self.n_controls))
-
-        grad_L = jax.grad(loss)
-        u_k = u_init
-        opt_start_time = time.time()
-        for k in range(num_traj_opt_iters):
-            # At each step measure the loss
-            print("Loss at", k, "=", loss(u_k))
-
-            # Update input
-            u_kp1 = u_k - u_step_size * grad_L(u_k)
-
-            if u_clipping:
-                for i in range(horizon):
-                    if u_kp1[i, 0] < -self.ps_cof * u_kp1.at[i, 1].get():
-                        u_kp1 = u_kp1.at[i, 0].set(-self.ps_cof * u_kp1.at[i, 1].get())
-                    if u_kp1[i, 0] > self.ps_cof * u_kp1.at[i, 1].get():
-                        u_kp1 = u_kp1.at[i, 0].set(self.ps_cof * u_kp1.at[i, 1].get())
-
-            # Set variables for next loop iteration
-            u_k = u_kp1
-
-        # Finished with optimization
-        opt_end_time = time.time()
-        final_loss = loss(u_k)
-
-        return u_k, opt_end_time - opt_start_time, final_loss
-

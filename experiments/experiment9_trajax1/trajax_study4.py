@@ -81,7 +81,6 @@ if __name__ == '__main__':
         # )
         J_obstacle = \
             data['J_obstacle_prefactor'] * \
-            jnp.exp(- 0.1*(time_step-(horizon/2))) * \
             jnp.abs(
                 jnp.linalg.norm(state[:2]) - 1.5 * ps.nominal_scenario['obstacle_radius']
             )

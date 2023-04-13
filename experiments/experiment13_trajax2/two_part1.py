@@ -6,6 +6,7 @@ Description:
 
 import jax
 import jax.numpy as jnp
+import numpy
 import trajax
 from trajax import optimizers
 
@@ -23,13 +24,14 @@ if __name__ == '__main__':
     # Constants
 
     data = {
-        'horizon1': 40, 'horizon2': 20,
-        'max_iter': 2500, 'num_samples': 5000,
+        'horizon1': 80, 'horizon2': 40,
+        'max_iter': 3500, 'num_samples': 5000,
         'elite_portion': 0.01,
-        'dt': 0.05, 'u0': 0.5, 'J_u_prefactor': 0.1, #0.0005,
+        'dt': 0.05, 'u0': 0.5,
+        'J_u_prefactor_diagonal': [0.005*(1/0.35), 0.005], #0.0005,
         'J_obstacle_prefactor': 10.0,
         'J_obstacle_prefactor_decay_rate': 0.1,
-        'u_max': 1.0, 'x0': [-0.5, -0.5, jnp.pi/4],
+        'u_max': 20.0, 'x0': [-0.5, -0.5, jnp.pi/4],
     }
     x0 = jnp.array(data['x0'])
 
@@ -43,6 +45,20 @@ if __name__ == '__main__':
         dt=data['dt'],
     )
     data['n_u'] = ps.n_controls
+
+    # data['U_lb'] = [-ps.ps_cof * (data['u_max'] / 4), data['u_max'] / 4]
+    # data['U_ub'] = [ps.ps_cof * (data['u_max'] / 4), data['u_max']]
+    # This should not be right.
+    # data['U_lb'] = [data['u_max'] / 4, -ps.ps_cof * (data['u_max'] / 4) ]
+    # data['U_ub'] = [data['u_max']    , ps.ps_cof * (data['u_max'] / 4)]
+
+    # This is even less right
+    # data['U_lb'] = [0.0, -ps.ps_cof * data['u_max']]
+    # data['U_ub'] = [data['u_max'], ps.ps_cof * data['u_max']]
+
+    # Closer to being right
+    data['U_lb'] = [-ps.ps_cof * data['u_max'], 0.0]
+    data['U_ub'] = [ps.ps_cof * data['u_max'], data['u_max']]
 
 
     # Define helper functions
@@ -70,7 +86,7 @@ if __name__ == '__main__':
 
         # Compute Input Cost
         #J_u = (0.5 - (0.45*jnp.exp(time_step)/(jnp.exp(time_step) + jnp.exp(data['horizon']-time_step))))*jnp.linalg.norm(action)
-        J_u = data['J_u_prefactor'] * jnp.linalg.norm(action[1])
+        J_u = action.T @ jnp.diag(jnp.array(data['J_u_prefactor_diagonal'])) @ action
         # J_u = jnp.array(0.0)
 
         # TODO: Penalize actions outside of motion cone!
@@ -109,11 +125,11 @@ if __name__ == '__main__':
         x_star = ps.goal_point(theta)
 
         # Compute Distance to Target
-        J_x = jnp.linalg.norm(state[:2] - x_star[:2])
+        J_x = jnp.linalg.norm(state - x_star)
 
         # Compute Input Cost
         # J_u = (0.5 - (0.45*jnp.exp(time_step)/(jnp.exp(time_step) + jnp.exp(data['horizon']-time_step))))*jnp.linalg.norm(action)
-        J_u = data['J_u_prefactor'] * jnp.linalg.norm(action[1])
+        J_u = action.T @ jnp.diag(jnp.array(data['J_u_prefactor_diagonal'])) @ action
         # J_u = jnp.array(0.0)
 
         # TODO: Penalize actions outside of motion cone!
@@ -153,7 +169,7 @@ if __name__ == '__main__':
 
     # Run ilqr trajopt
     U0 = jnp.zeros((data['horizon1'], data['n_u']))
-    U0 = U0.at[:, 0].set(data['u0'])
+    U0 = U0.at[:, 1].set(data['u0'])
 
     hyperparams = optimizers.default_cem_hyperparams()
     hyperparams['max_iter'] = data['max_iter']
@@ -164,8 +180,8 @@ if __name__ == '__main__':
         ps_cost, ps_dynamics,
         x0,
         U0,
-        jnp.array([0.0, -ps.ps_cof * data['u_max']]),
-        jnp.array([data['u_max'], ps.ps_cof * data['u_max']]),
+        jnp.array(data['U_lb']),
+        jnp.array(data['U_ub']),
         max_iter=hyperparams['max_iter'],
         num_samples=hyperparams['num_samples'],
         elite_portion=hyperparams['elite_portion'],
@@ -193,8 +209,8 @@ if __name__ == '__main__':
         ps_cost2, ps_dynamics,
         x1,
         U1,
-        jnp.array([0.0, -ps.ps_cof * data['u_max']]),
-        jnp.array([data['u_max'], ps.ps_cof * data['u_max']]),
+        jnp.array(data['U_lb']),
+        jnp.array(data['U_ub']),
         max_iter=hyperparams['max_iter'],
         num_samples=hyperparams['num_samples'],
         elite_portion=hyperparams['elite_portion'],
@@ -210,6 +226,20 @@ if __name__ == '__main__':
         print("U = ", U0_star)
         print("opt_obj = ", opt_obj)
         print("X = ", X2)
+
+    # Save Full Trajectory
+    X1 = X1.T
+    X2 = X2.T
+    X = jnp.hstack((X1, X2[:, 1:]))
+    X = X.reshape((1, X.shape[0], X.shape[1]))
+
+    U1 = U0_star.T
+    U2 = U2_star.T
+    U = jnp.hstack((U1, U2[:, 1:]))
+    U = U.reshape((1, U.shape[0], U.shape[1]))
+
+    data['X'] = numpy.asarray(X)
+    data['U'] = numpy.asarray(U)
 
     # Save results
     now = datetime.now()
@@ -236,15 +266,6 @@ if __name__ == '__main__':
     # print(ps.control_affine_dynamics(x0))
 
     # Plot Results
-    X1 = X1.T
-    X2 = X2.T
-    X = jnp.hstack((X1, X2[:, 1:]))
-    X = X.reshape((1, X.shape[0], X.shape[1]))
-
-    U1 = U0_star.T
-    U2 = U2_star.T
-    U = jnp.hstack((U1, U2[:, 1:]))
-    U = U.reshape((1, U.shape[0], U.shape[1]))
 
     th = ps.theta
     th = th.reshape((1, th.shape[0]))
