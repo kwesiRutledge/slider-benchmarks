@@ -169,8 +169,11 @@ experiments/experiment11_handcrafted_path/*.gif
 experiments/experiment13_trajax2/*.mp4
 experiments/experiment13_trajax2/data/*.yml
 experiments/experiment14_trajax3/data/*.yml
+experiments/experiment14_trajax3/*.png
+experiments/experiment14_trajax3/*.mp4
 experiments/experiment15_trajax4/data/*.yml
 experiments/experiment16_python_control_trajopt/data/*.yml
+experiments/experiment16_python_control_trajopt/data/*.png
 experiments/experiment16_python_control_trajopt/*.mp4
 
 # Tests
